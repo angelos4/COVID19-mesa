@@ -279,7 +279,7 @@ class DiffEq():
                                        t_eval=self.timespan)
 
     def plot_constant(self, output):
-        plt.figure(figsize=(200.7, 100.27))
+        plt.figure(figsize=(20, 10))
         plt.title("Differential Equation Constant R")
         plt.xlabel('days')
         plt.ylabel('Prop Population')
@@ -291,7 +291,7 @@ class DiffEq():
         plt.savefig(output.replace("datatype", "SIRD_constant"),dpi=700)
 
     def plot_random(self, output):
-        plt.figure(figsize=(200.7, 100.27))
+        plt.figure(figsize=(20, 10))
         plt.title("Differential Equation Random R")
         plt.xlabel('days')
         plt.ylabel('Prop Population')
@@ -301,10 +301,11 @@ class DiffEq():
         plt.plot(self.timespan, self.solution_rand.y[3], color="green", label="Recovered")
         plt.plot(self.timespan, self.solution_rand.y[4], color="black", label="Deceased")
         plt.savefig(output.replace("datatype", "SIRD_random"),dpi=700)
+        plt.close()
 
     def plot_diff(self, output):
 
-        plt.figure(figsize=(200.7, 100.27))
+        plt.figure(figsize=(20, 10))
         plt.title("Constant R - Random R")
         plt.xlabel('days')
         plt.ylabel('Difference')
@@ -314,10 +315,11 @@ class DiffEq():
         plt.plot(self.solution.t, np.abs(self.solution.y[3]- self.solution_rand.y[3]), color="green", label="Recovered")
         plt.plot(self.solution.t, np.abs(self.solution.y[4]- self.solution_rand.y[4]), color="black", label="Deceased")
         plt.savefig(output.replace("datatype", "SIRD_diff"),dpi=700)
+        plt.close()
 
     def plot_diff_abm(self, abm_data, output):
         self.solution_rand = solve_ivp(self.F_simple_varying_R, [0, int(data["ensemble"]["steps"] / 96)], self.x_0, t_eval=self.timespan)
-        plt.figure(figsize=(200.7, 100.27))
+        plt.figure(figsize=(20, 10))
         plt.title("Differential - ABM Data")
         plt.xlabel('days')
         plt.ylabel('Difference')
@@ -327,9 +329,10 @@ class DiffEq():
         plt.plot(self.solution_rand.y[3] - abm_data["Recovered"], color="green", label="Recovered")
         plt.plot(self.solution_rand.y[4] - abm_data["Deceased"], color="black", label="Deceased")
         plt.savefig(output.replace("datatype", "diff_abm"),dpi=700)
+        plt.close()
 
     def plot_abm(self, abm_data, output):
-        plt.figure(figsize=(200.7, 100.27))
+        plt.figure(figsize=(20, 10))
         plt.title("")
         plt.xlabel('days')
         plt.ylabel('Prop Population')
@@ -340,13 +343,16 @@ class DiffEq():
         plt.plot(abm_data["Recovered"], color="green", label="Recovered")
         plt.plot(abm_data["Deceased"], color="black", label="Deceased")
         plt.savefig(output.replace("datatype", "ABM_data"))
+        plt.close()
     def plot_R(self, abm_data, output):
-        plt.figure(figsize=(200.7, 100.27))
+        plt.figure(figsize=(20, 10))
         plt.xlabel('days')
         plt.ylabel('R_0')
         plt.title("R(t)")
+        print(len(abm_data["R_0"]))
         plt.plot(   abm_data["R_0"], color="blue",label="Susceptible")
         plt.savefig(output.replace("datatype", "R"),dpi=700)
+        plt.close()
 
 def average(values):
     count = 0
@@ -355,7 +361,7 @@ def average(values):
     return count/len(values)
 #Here is where we put the model verification process.
 if __name__ == '__main__':
-    run_models = True
+    run_models = False
     if (run_models == True):
        processes = []
        for index, data in enumerate(data_list):
@@ -375,7 +381,7 @@ if __name__ == '__main__':
         full_model_data = {}
         for feature in features:
             df = pd.DataFrame()
-            df["Step"] = df0["Step"]
+            df["Step"] = df0["Step"]/96
             df[feature] = df0[feature]  # *100
             avg = []
             low_ci_95 = []
