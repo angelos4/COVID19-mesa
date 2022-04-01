@@ -13,7 +13,7 @@ Jinja2==2.11.3
 jinja2-time==0.2.0
 kiwisolver==1.1.0
 MarkupSafe==1.1.1
-matplotlib==3.4.2
+matplotlib
 Mesa==0.8.6
 multiprocess==0.70.9
 networkx==2.4
@@ -32,6 +32,6 @@ seaborn==0.10.0
 six==1.14.0
 tornado==6.0.4
 tqdm==4.44.1
-urllib3==1.26.5
+urllib3
 whichcraft==0.6.1
 psutil

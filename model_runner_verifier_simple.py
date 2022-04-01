@@ -223,8 +223,8 @@ def runModelScenario(data, index, iterative_input): #Function that runs a specif
 
     # TODO-create the nomenclature for the nature of the save file for both model and agent data. (Very important for organizing test runs for different policy evaluations)
     #Iterative input can be used to directly name the model of interest.
-    model_dfs.to_csv(model_save_file + "_" + str(iterative_input) + ".csv")
-    agent_dfs.to_csv(agent_save_file + "_" + str(iterative_input) + ".csv")
+    model_dfs.to_csv(model_save_file)
+    agent_dfs.to_csv(agent_save_file)
 
     print(f"Simulation {index} completed without errors.")
 
@@ -278,7 +278,7 @@ class DiffEq():
         self.solution_rand = solve_ivp(self.F_simple_varying_R, [0, int(data["ensemble"]["steps"] / 96)+1], self.x_0,
                                        t_eval=self.timespan)
 
-    def plot_constant(self):
+    def plot_constant(self, output):
         plt.figure(figsize=(200.7, 100.27))
         plt.title("Differential Equation Constant R")
         plt.xlabel('days')
@@ -288,9 +288,9 @@ class DiffEq():
         plt.plot(self.timespan, self.solution.y[2], color="red", label="Infected")
         plt.plot(self.timespan, self.solution.y[3], color="green", label="Recovered")
         plt.plot(self.timespan, self.solution.y[4], color="black", label="Deceased")
-        plt.show()
+        plt.savefig(output.replace("datatype", "SIRD_constant"))
 
-    def plot_random(self):
+    def plot_random(self, output):
         plt.figure(figsize=(200.7, 100.27))
         plt.title("Differential Equation Random R")
         plt.xlabel('days')
@@ -300,9 +300,9 @@ class DiffEq():
         plt.plot(self.timespan, self.solution_rand.y[2], color="red", label="Infected")
         plt.plot(self.timespan, self.solution_rand.y[3], color="green", label="Recovered")
         plt.plot(self.timespan, self.solution_rand.y[4], color="black", label="Deceased")
-        plt.show()
+        plt.savefig(output.replace("datatype", "SIRD_random"))
 
-    def plot_diff(self):
+    def plot_diff(self, output):
 
         plt.figure(figsize=(200.7, 100.27))
         plt.title("Constant R - Random R")
@@ -313,9 +313,9 @@ class DiffEq():
         plt.plot(self.solution.t, np.abs(self.solution.y[2]- self.solution_rand.y[2]), color="red", label="Infected")
         plt.plot(self.solution.t, np.abs(self.solution.y[3]- self.solution_rand.y[3]), color="green", label="Recovered")
         plt.plot(self.solution.t, np.abs(self.solution.y[4]- self.solution_rand.y[4]), color="black", label="Deceased")
-        plt.show()
+        plt.savefig(output.replace("datatype", "SIRD_diff"))
 
-    def plot_diff_abm(self, abm_data):
+    def plot_diff_abm(self, abm_data, output):
         self.solution_rand = solve_ivp(self.F_simple_varying_R, [0, int(data["ensemble"]["steps"] / 96)], self.x_0, t_eval=self.timespan)
         plt.figure(figsize=(200.7, 100.27))
         plt.title("Differential - ABM Data")
@@ -326,9 +326,9 @@ class DiffEq():
         plt.plot(self.solution_rand.y[2] - abm_data["Infected"], color="red", label="Infected")
         plt.plot(self.solution_rand.y[3] - abm_data["Recovered"], color="green", label="Recovered")
         plt.plot(self.solution_rand.y[4] - abm_data["Deceased"], color="black", label="Deceased")
-        plt.show()
+        plt.savefig(output.replace("datatype", "diff_abm"))
 
-    def plot_abm(self, abm_data):
+    def plot_abm(self, abm_data, output):
         plt.figure(figsize=(200.7, 100.27))
         plt.title("")
         plt.xlabel('days')
@@ -339,35 +339,38 @@ class DiffEq():
         plt.plot(abm_data["Infected"], color="red", label="Infected")
         plt.plot(abm_data["Recovered"], color="green", label="Recovered")
         plt.plot(abm_data["Deceased"], color="black", label="Deceased")
-        plt.show()
-    def plot_R(self, abm_data):
+        plt.savefig(output.replace("datatype", "ABM_data"))
+    def plot_R(self, abm_data, output):
         plt.figure(figsize=(200.7, 100.27))
         plt.xlabel('days')
         plt.ylabel('R_0')
         plt.title("R(t)")
         plt.plot(   abm_data["R_0"], color="blue",label="Susceptible")
-        plt.show()
+        plt.savefig(output.replace("datatype", "R"))
 
 def average(values):
     count = 0
     for item in values:
         count += item
     return count/len(values)
-
 #Here is where we put the model verification process.
 if __name__ == '__main__':
-    processes = []
+    run_models = True
+    if (run_models == True):
+       processes = []
+       for index, data in enumerate(data_list):
+           p = multiprocessing.Process(target=runModelScenario, args=[data, index, 0])
+           p.start()
+           processes.append(p)
+       for process in processes:
+           process.join()
+    
     for index, data in enumerate(data_list):
-        p = multiprocessing.Process(target=runModelScenario, args=[data, index, 0])
-        p.start()
-        processes.append(p)
-    for process in processes:
-        process.join()
-
-    for index, data in enumerate(data_list):
-        # runModelScenario(data, index, 0)
-        df0 = pd.read_csv("scenarios/Debugging/Test_A/cu-backtracking-test-200-index-0-model.csv_0.csv")
-        df0["Step"] = df0["Step"] / 96
+        #runModelScenario(data, index, 0)
+        output_location = data["output"]["model_save_file"]
+        output_location = output_location.replace(".csv", "-datatype.png")
+        df0 = pd.read_csv(data["output"]["model_save_file"])
+        print("Input",data["output"]["model_save_file"])
         features = ["Susceptible", "Exposed", "Infected", "Recovered", "Deceased", "R_0"]
         full_model_data = {}
         for feature in features:
@@ -406,9 +409,9 @@ if __name__ == '__main__':
 
         model_data["R_0"].append(0)
         model_data["R_0"].append(0)
-
+	
         diffeqmodel = DiffEq(data)
-        diffeqmodel.plot_R(model_data)
+        diffeqmodel.plot_R(model_data, output_location)
         for index, item in enumerate(model_data["R_0"]):
             model_data["R_0"][index] = item * 4.4
         # Verification process:
@@ -423,11 +426,11 @@ if __name__ == '__main__':
         diffeqmodel.solve_rand()
 
 
-        diffeqmodel.plot_abm(model_data)
-        diffeqmodel.plot_constant()
-        diffeqmodel.plot_random()
-        diffeqmodel.plot_diff()
-        diffeqmodel.plot_diff_abm(model_data)
+        diffeqmodel.plot_abm(model_data, output_location)
+        diffeqmodel.plot_constant(output_location)
+        diffeqmodel.plot_random(output_location)
+        diffeqmodel.plot_diff(outpu_location)
+        diffeqmodel.plot_diff_abm(model_data, output_location)
         # 1. Initialize Differential model for a fixed parameter
         # First visualizing a basic SEIRD model with the following parameters:
             # beta -> constant transmission rate of infected individuals
