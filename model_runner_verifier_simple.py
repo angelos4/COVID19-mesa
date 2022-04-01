@@ -361,7 +361,7 @@ def average(values):
     return count/len(values)
 #Here is where we put the model verification process.
 if __name__ == '__main__':
-    run_models = False
+    run_models = True
     if (run_models == True):
        processes = []
        for index, data in enumerate(data_list):
