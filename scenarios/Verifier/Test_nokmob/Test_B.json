@@ -100,7 +100,7 @@
         "new_agent_prop_infected": 0.02
       },
       "vaccine_rollout": {
-        "day_vaccination_begin": 30,
+        "day_vaccination_begin": 1000,
         "day_vaccination_end": 700,
         "effective_period": 10,
         "effectiveness": 0.95,
@@ -110,9 +110,9 @@
       }
     },
     "epidemiology": {
-      "num_agents": 300,
-      "width": 40,
-      "height": 40,
+      "num_agents": 1000,
+      "width": 100,
+      "height": 100,
       "repscaling": 1,
       "kmob": 1,
       "rate_inbound": 0.01,
@@ -121,13 +121,13 @@
       "avg_recovery_time": 14,
       "proportion_asymptomatic": 0.3,
       "proportion_severe": 0.12,
-      "prob_contagion": 0.5,
+      "prob_contagion": 0.2,
       "proportion_beds_pop": 0.01
     }
   },
     "ensemble": {
         "steps": 20000,
-        "runs": 8
+        "runs": 16
     },
   "output": {
     "agent_storage": 0,

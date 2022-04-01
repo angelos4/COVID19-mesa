@@ -15,7 +15,7 @@
     },
     "Alpha": {
       "Name": "Alpha_Variant",
-      "Appearance": 50,
+      "Appearance": 1000,
       "Contagtion_Multiplier": 1.6,
       "Vaccine_Multiplier": 0.9863,
       "Asymtpomatic_Multiplier": 1,
@@ -24,7 +24,7 @@
     },
     "Beta": {
       "Name": "Beta_Variant",
-      "Appearance": 100,
+      "Appearance": 1000,
       "Contagtion_Multiplier": 1.6,
       "Vaccine_Multiplier": 0.875,
       "Asymtpomatic_Multiplier": 1,
@@ -33,7 +33,7 @@
     },
     "Delta": {
       "Name": "Delta_Variant",
-      "Appearance": 150,
+      "Appearance": 1000,
       "Contagtion_Multiplier": 2.1,
       "Vaccine_Multiplier": 0.9263,
       "Asymtpomatic_Multiplier": 1,
@@ -42,7 +42,7 @@
     },
     "Xeta": {
       "Name": "Xeta_Variant",
-      "Appearance": 200,
+      "Appearance": 1000,
       "Contagtion_Multiplier": 2.1,
       "Vaccine_Multiplier": 0.5,
       "Asymtpomatic_Multiplier": 0.5,
