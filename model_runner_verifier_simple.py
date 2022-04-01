@@ -288,7 +288,7 @@ class DiffEq():
         plt.plot(self.timespan, self.solution.y[2], color="red", label="Infected")
         plt.plot(self.timespan, self.solution.y[3], color="green", label="Recovered")
         plt.plot(self.timespan, self.solution.y[4], color="black", label="Deceased")
-        plt.savefig(output.replace("datatype", "SIRD_constant"))
+        plt.savefig(output.replace("datatype", "SIRD_constant"),dpi=700)
 
     def plot_random(self, output):
         plt.figure(figsize=(200.7, 100.27))
@@ -300,7 +300,7 @@ class DiffEq():
         plt.plot(self.timespan, self.solution_rand.y[2], color="red", label="Infected")
         plt.plot(self.timespan, self.solution_rand.y[3], color="green", label="Recovered")
         plt.plot(self.timespan, self.solution_rand.y[4], color="black", label="Deceased")
-        plt.savefig(output.replace("datatype", "SIRD_random"))
+        plt.savefig(output.replace("datatype", "SIRD_random"),dpi=700)
 
     def plot_diff(self, output):
 
@@ -313,7 +313,7 @@ class DiffEq():
         plt.plot(self.solution.t, np.abs(self.solution.y[2]- self.solution_rand.y[2]), color="red", label="Infected")
         plt.plot(self.solution.t, np.abs(self.solution.y[3]- self.solution_rand.y[3]), color="green", label="Recovered")
         plt.plot(self.solution.t, np.abs(self.solution.y[4]- self.solution_rand.y[4]), color="black", label="Deceased")
-        plt.savefig(output.replace("datatype", "SIRD_diff"))
+        plt.savefig(output.replace("datatype", "SIRD_diff"),dpi=700)
 
     def plot_diff_abm(self, abm_data, output):
         self.solution_rand = solve_ivp(self.F_simple_varying_R, [0, int(data["ensemble"]["steps"] / 96)], self.x_0, t_eval=self.timespan)
@@ -326,7 +326,7 @@ class DiffEq():
         plt.plot(self.solution_rand.y[2] - abm_data["Infected"], color="red", label="Infected")
         plt.plot(self.solution_rand.y[3] - abm_data["Recovered"], color="green", label="Recovered")
         plt.plot(self.solution_rand.y[4] - abm_data["Deceased"], color="black", label="Deceased")
-        plt.savefig(output.replace("datatype", "diff_abm"))
+        plt.savefig(output.replace("datatype", "diff_abm"),dpi=700)
 
     def plot_abm(self, abm_data, output):
         plt.figure(figsize=(200.7, 100.27))
@@ -346,7 +346,7 @@ class DiffEq():
         plt.ylabel('R_0')
         plt.title("R(t)")
         plt.plot(   abm_data["R_0"], color="blue",label="Susceptible")
-        plt.savefig(output.replace("datatype", "R"))
+        plt.savefig(output.replace("datatype", "R"),dpi=700)
 
 def average(values):
     count = 0
@@ -429,7 +429,7 @@ if __name__ == '__main__':
         diffeqmodel.plot_abm(model_data, output_location)
         diffeqmodel.plot_constant(output_location)
         diffeqmodel.plot_random(output_location)
-        diffeqmodel.plot_diff(outpu_location)
+        diffeqmodel.plot_diff(output_location)
         diffeqmodel.plot_diff_abm(model_data, output_location)
         # 1. Initialize Differential model for a fixed parameter
         # First visualizing a basic SEIRD model with the following parameters:
