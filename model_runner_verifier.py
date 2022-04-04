@@ -6,13 +6,15 @@
 # A simple tunable model for COVID-19 response
 from batchrunner_local import BatchRunnerMP
 from multiprocessing import freeze_support
-from covidmodelcheckpoint import CovidModel
+from covidmodelcheckpoint_simple import CovidModel
 from covidmodelcheckpoint import CovidModel
 from covidmodelcheckpoint import Stage
 from covidmodelcheckpoint import AgeGroup
 from covidmodelcheckpoint import SexGroup
 from covidmodelcheckpoint import ValueGroup
 from covidmodelcheckpoint import *
+from scipy.integrate import solve_ivp
+import matplotlib.pyplot as plt
 import pandas as pd
 import json
 import sys
@@ -21,37 +23,35 @@ import multiprocessing
 import os
 import glob
 
-
-
 directory_list = []
 filenames_list = []
-virus_data_file = open(str(sys.argv[1])) #First arguement must be the location of the variant data file
+virus_data_file = open(str(sys.argv[1]))  # First arguement must be the location of the variant data file
 
-
-for argument in sys.argv[2:]:   # Every following arguement must be a folder containing scenario data
+for argument in sys.argv[2:]:  # Every following arguement must be a folder containing scenario data
     directory_list.append(argument)
 
-for directory in directory_list:    #Searches through the directories for scenario files
+for directory in directory_list:  # Searches through the directories for scenario files
     file_list = glob.glob(f"{directory}/*.json")
     for file in file_list:
         filenames_list.append(file)
 
 # Read JSON file
 data_list = []
-for file_params in filenames_list:      #Creates a data list based on the filenames
+for file_params in filenames_list:  # Creates a data list based on the filenames
     with open(file_params) as f:
         data = json.load(f)
         data_list.append(data)
 
-indexes = [range(len(data_list))]       #Creates a list of indeces associating an index to a data set.
+indexes = [range(len(data_list))]  # Creates a list of indeces associating an index to a data set.
 virus_data = json.load(virus_data_file)
 
-def runModelScenario(data, index, iterative_input): #Function that runs a specified scenario given parameters in data.
 
-    print(f"Location: { data['location'] }")
-    print(f"Description: { data['description'] }")
-    print(f"Prepared by: { data['prepared-by'] }")
-    print(f"Date: { data['date'] }")
+def runModelScenario(data, index, iterative_input):  # Function that runs a specified scenario given parameters in data.
+
+    print(f"Location: {data['location']}")
+    print(f"Description: {data['description']}")
+    print(f"Prepared by: {data['prepared-by']}")
+    print(f"Date: {data['date']}")
     print("")
     print("Attempting to configure model from file...")
     # Observed distribution of mortality rate per age
@@ -114,11 +114,11 @@ def runModelScenario(data, index, iterative_input): #Function that runs a specif
             Stage.DECEASED: data["model"]["value"]["public"]["deceased"]
         }
     }
-    print(iterative_input)
+
     model_params = {
-        "num_agents": iterative_input[0],
-        "width": iterative_input[1][0],
-        "height": iterative_input[1][1],
+        "num_agents": data["model"]["epidemiology"]["num_agents"],
+        "width": data["model"]["epidemiology"]["width"],
+        "height": data["model"]["epidemiology"]["height"],
         "repscaling": data["model"]["epidemiology"]["repscaling"],
         "kmob": data["model"]["epidemiology"]["kmob"],
         "age_mortality": age_mortality,
@@ -160,25 +160,25 @@ def runModelScenario(data, index, iterative_input): #Function that runs a specif
         "effective_period": data["model"]["policies"]["vaccine_rollout"]["effective_period"],
         "effectiveness": data["model"]["policies"]["vaccine_rollout"]["effectiveness"],
         "distribution_rate": data["model"]["policies"]["vaccine_rollout"]["distribution_rate"],
-        "cost_per_vaccine":data["model"]["policies"]["vaccine_rollout"]["cost_per_vaccine"],
+        "cost_per_vaccine": data["model"]["policies"]["vaccine_rollout"]["cost_per_vaccine"],
         "vaccination_percent": data["model"]["policies"]["vaccine_rollout"]["vaccination_percent"],
         "step_count": data["ensemble"]["steps"],
         "load_from_file": data["model"]["initialization"]["load_from_file"],
         "loading_file_path": data["model"]["initialization"]["loading_file_path"],
-        "starting_step":data["model"]["initialization"]["starting_step"],
-        "agent_storage" : data["output"]["agent_storage"],
+        "starting_step": data["model"]["initialization"]["starting_step"],
+        "agent_storage": data["output"]["agent_storage"],
         "model_storage": data["output"]["model_storage"],
         "agent_increment": data["output"]["agent_increment"],
         "model_increment": data["output"]["model_increment"],
-        "vector_movement" : False
+        "vector_movement": False
     }
 
-    #Adds variant data into the model in the form of a list.
+    # Adds variant data into the model in the form of a list.
     virus_param_list = []
     for virus in virus_data["variant"]:
         virus_param_list.append(virus_data["variant"][virus])
     model_params["variant_data"] = virus_param_list
-    var_params = {"dummy": range(25,50,25)}
+    var_params = {"dummy": range(25, 50, 25)}
 
     num_iterations = data["ensemble"]["runs"]
     num_steps = data["ensemble"]["steps"]
@@ -191,23 +191,24 @@ def runModelScenario(data, index, iterative_input): #Function that runs a specif
         iterations=num_iterations,
         max_steps=num_steps,
         model_reporters={
-                    "Step": compute_stepno,
-                    "CummulPrivValue": compute_cumul_private_value,
-                    "CummulPublValue": compute_cumul_public_value,
-                    "CummulTestCost": compute_cumul_testing_cost,
-                    "Rt": compute_eff_reprod_number,
-                    "Employed": compute_employed,
-                    "Unemployed": compute_unemployed
-                },
+            "Step": compute_stepno,
+            "CummulPrivValue": compute_cumul_private_value,
+            "CummulPublValue": compute_cumul_public_value,
+            "CummulTestCost": compute_cumul_testing_cost,
+            "Rt": compute_eff_reprod_number,
+            "Employed": compute_employed,
+            "Unemployed": compute_unemployed
+        },
         display_progress=True)
 
     print("Parametrization complete:")
     print("")
     print(f"Running file {filenames_list[index]}")
     print("")
-    print(f"Executing an ensemble of size {num_iterations} using {num_steps} steps with {num_iterations} machine cores...")
+    print(
+        f"Executing an ensemble of size {num_iterations} using {num_steps} steps with {num_iterations} machine cores...")
 
-    #Will now return a dictionary containing [iteration:[model_data, agent_data]]
+    # Will now return a dictionary containing [iteration:[model_data, agent_data]]
     cm_runs = batch_run.run_all()
 
     # Extracting data into distinct dataframes
@@ -227,43 +228,320 @@ def runModelScenario(data, index, iterative_input): #Function that runs a specif
     agent_save_file = data["output"]["agent_save_file"]
 
     # TODO-create the nomenclature for the nature of the save file for both model and agent data. (Very important for organizing test runs for different policy evaluations)
-    #Iterative input can be used to directly name the model of interest.
-    model_dfs.to_csv(model_save_file + "_" + str(iterative_input) + ".csv")
-    agent_dfs.to_csv(agent_save_file + "_" + str(iterative_input) + ".csv")
+    # Iterative input can be used to directly name the model of interest.
+    model_dfs.to_csv(model_save_file)
+    agent_dfs.to_csv(agent_save_file)
 
     print(f"Simulation {index} completed without errors.")
 
 
+class DiffEq():
+    def __init__(self, data):
+        self.dimensional_contacts = 3  # Testing average daily contacts
+        self.N = data["model"]["epidemiology"]["num_agents"]
+        self.beta = self.N * self.dimensional_contacts * data["model"]["epidemiology"]["prob_contagion"]
+        self.beta_rand = np.random.uniform(low=self.beta - 0.25, high=self.beta + 0.25,
+                                           size=(int(data["ensemble"]["steps"] / 96) + 1,))
+        self.sigma = 1 / data["model"]["epidemiology"]["avg_incubation_time"]
+        self.gamma = 1 / data["model"]["epidemiology"]["avg_recovery_time"]
+        self.mortality = data["model"]["epidemiology"]["proportion_severe"]
+        self.recovery = 1 - self.mortality
+        self.prob_asym = data["model"]["epidemiology"]["proportion_severe"]
+        self.prob_sev = data["model"]["epidemiology"]["proportion_severe"]
+        self.parameters = []
+        self.d_0 = 0    #Deceased
+        self.r_0 = 0    #Recovered
+        self.a_0 = 0    #Asymptomatic
+        self.v_0 = 0    #Severe
+        self.e_0 = data["model"]["epidemiology"]["prop_initial_infected"]   #Exposed
+        self.i_0 = 0    #Symptomatic
+        self.s_0 = 1 - self.i_0 #Susceptible
+        self.x_0 = np.array([self.s_0, self.e_0, self.a_0, self.i_0, self.v_0,self.r_0, self.d_0])
+        self.timespan = np.arange(0, int(data["ensemble"]["steps"] / 96) + 1, 1)
+
+    def F_simple_varying_R(self, days, variables):
+        s, e, a, i, v, r, d = variables
+        return [-self.gamma * self.beta_rand[int(days)] * s * i,  # ds/dt = -γR₀si
+                self.gamma * self.beta_rand[int(days)] * s * i - self.sigma * e,  # de/dt =  γR₀si -σe
+                self.sigma * e * self.prob_asym - self.gamma * a,
+                self.sigma * e * (1-self.prob_asym) - i * self.prob_sev - (1-self.prob_sev) * self.gamma * i, # di/dt
+                self.prob_sev * i - self.mortality * v,
+                self.gamma * a + (1-self.prob_sev) * self.gamma * i,  # dr/dt
+                self.mortality * v]  # dd/dt
+
+    def F_simple(self, days, variables):
+        s, e, a, i, v, r, d = variables
+        return [-self.gamma * self.beta * s * i,  # ds/dt = -γR₀si
+                self.gamma * self.beta * s * i - self.sigma * e,  # de/dt =  γR₀si -σe
+                self.sigma * e * self.prob_asym - self.gamma * a,
+                self.sigma * e * (1 - self.prob_asym) - i * self.prob_sev - (1 - self.prob_sev) * self.gamma * i,
+                # di/dt
+                self.prob_sev * i - self.mortality * v,
+                self.gamma * a + (1 - self.prob_sev) * self.gamma * i,  # dr/dt
+                self.mortality * v]  # dd/dt
+
+    def solve(self):
+        self.solution = solve_ivp(self.F_simple, [0, int(data["ensemble"]["steps"] / 96) + 1], self.x_0,
+                                  t_eval=self.timespan)
+        # recreating the tables based on the count of agents in the diffeq model
+
+    def solve_rand(self):
+        self.solution_rand = solve_ivp(self.F_simple_varying_R, [0, int(data["ensemble"]["steps"] / 96) + 1], self.x_0,
+                                       t_eval=self.timespan)
+
+    def plot_constant(self, output):
+        plt.figure(figsize=(20, 10))
+        plt.title("Differential Equation Constant R")
+        plt.xlabel('days')
+        plt.ylabel('Prop Population')
+        plt.plot(self.timespan, self.solution.y[0], color="blue", label="Susceptible")
+        plt.plot(self.timespan, self.solution.y[1], color="purple", label="Exposed")
+        plt.plot(self.timespan, self.solution.y[2], color="red", label="Infected")
+        plt.plot(self.timespan, self.solution.y[3], color="green", label="Recovered")
+        plt.plot(self.timespan, self.solution.y[4], color="black", label="Deceased")
+        plt.savefig(output.replace("datatype", "SIRD_constant"), dpi=700)
+
+    def plot_random(self, output):
+        plt.figure(figsize=(20, 10))
+        plt.title("Differential Equation Random R")
+        plt.xlabel('days')
+        plt.ylabel('Prop Population')
+        plt.plot(self.timespan, self.solution_rand.y[0], color="blue", label="Susceptible")
+        plt.plot(self.timespan, self.solution_rand.y[1], color="purple", label="Exposed")
+        plt.plot(self.timespan, self.solution_rand.y[2], color="red", label="Infected")
+        plt.plot(self.timespan, self.solution_rand.y[3], color="green", label="Recovered")
+        plt.plot(self.timespan, self.solution_rand.y[4], color="black", label="Deceased")
+        plt.savefig(output.replace("datatype", "SIRD_random"), dpi=700)
+        plt.close()
+
+    def plot_diff(self, output):
+
+        plt.figure(figsize=(20, 10))
+        plt.title("Constant R - Random R")
+        plt.xlabel('days')
+        plt.ylabel('Difference')
+        plt.plot(self.solution.t, np.abs(self.solution.y[0] - self.solution_rand.y[0]), color="blue",
+                 label="Susceptible")
+        plt.plot(self.solution.t, np.abs(self.solution.y[1] - self.solution_rand.y[1]), color="purple", label="Exposed")
+        plt.plot(self.solution.t, np.abs(self.solution.y[2] - self.solution_rand.y[2]), color="red", label="Infected")
+        plt.plot(self.solution.t, np.abs(self.solution.y[3] - self.solution_rand.y[3]), color="green",
+                 label="Recovered")
+        plt.plot(self.solution.t, np.abs(self.solution.y[4] - self.solution_rand.y[4]), color="black", label="Deceased")
+        plt.savefig(output.replace("datatype", "SIRD_diff"), dpi=700)
+        plt.close()
+
+    def plot_diff_abm(self, abm_data, output):
+        self.solution_rand = solve_ivp(self.F_simple_varying_R, [0, int(data["ensemble"]["steps"] / 96)], self.x_0,
+                                       t_eval=self.timespan)
+        plt.figure(figsize=(20, 10))
+        plt.title("Differential - ABM Data")
+        plt.xlabel('days')
+        plt.ylabel('Difference')
+        plt.plot(self.solution_rand.y[0] - abm_data["Susceptible"], color="blue", label="Susceptible")
+        plt.plot(self.solution_rand.y[1] - abm_data["Exposed"], color="purple", label="Exposed")
+        plt.plot(self.solution_rand.y[2] - abm_data["Infected"], color="red", label="Infected")
+        plt.plot(self.solution_rand.y[3] - abm_data["Recovered"], color="green", label="Recovered")
+        plt.plot(self.solution_rand.y[4] - abm_data["Deceased"], color="black", label="Deceased")
+        plt.savefig(output.replace("datatype", "diff_abm"), dpi=700)
+        plt.close()
+
+    def plot_abm(self, abm_data, output):
+        plt.figure(figsize=(20, 10))
+        plt.title("")
+        plt.xlabel('days')
+        plt.ylabel('Prop Population')
+        plt.title("ABM data")
+        plt.plot(abm_data["Susceptible"], color="blue", label="Susceptible")
+        plt.plot(abm_data["Exposed"], color="purple", label="Exposed")
+        plt.plot(abm_data["Infected"], color="red", label="Infected")
+        plt.plot(abm_data["Recovered"], color="green", label="Recovered")
+        plt.plot(abm_data["Deceased"], color="black", label="Deceased")
+        plt.savefig(output.replace("datatype", "ABM_data"))
+        plt.close()
+
+    def plot_R(self, abm_data, output):
+        plt.figure(figsize=(20, 10))
+        plt.xlabel('days')
+        plt.ylabel('R_0')
+        plt.title("R(t)")
+        print(len(abm_data["R_0"]))
+        plt.plot(abm_data["R_0"], color="blue", label="Susceptible")
+        plt.savefig(output.replace("datatype", "R"), dpi=700)
+        plt.close()
+
+    def calculate_error(self, model_data, hyperparam_weights):
+        error = 0
+        for step, value in enumerate(self.solution_rand.y[0]):
+            error += hyperparam_weights[0] * (self.solution_rand.y[0][step] - model_data["Susceptible"][step]) ** 2
+            error += hyperparam_weights[1] * (self.solution_rand.y[1][step] - model_data["Exposed"][step]) ** 2
+            error += hyperparam_weights[2] * (self.solution_rand.y[2][step] - model_data["Infected"][step]) ** 2
+            error += hyperparam_weights[3] * (self.solution_rand.y[3][step] - model_data["Recovered"][step]) ** 2
+            error += hyperparam_weights[4] * (self.solution_rand.y[4][step] - model_data["Deceased"][step]) ** 2
+        return np.sqrt(error)
+
+    # Runs through an iterated parameter sweep for a constant relative to R_0 and returns the value
+    def optimize(self, model_data, step_size, success_threshold, hyperparam_weights):
+        scale = 1
+        min_error = 9999999
+        step = step_size
+        increase = True  # Begin with this value at true since R_0 is guaranteed to be an underestimate
+        change = False
+        escaped = False
+
+        iteration = 0
+        while min_error > success_threshold:
+            R_t = []
+            # Shift the parameter up and down
+            if increase:
+                if change:
+                    step = step / 2
+
+                scale += step / 2
+                for index, item in enumerate(model_data["R_0"]):
+                    R_t.append(item * (scale))
+            else:
+                if change:
+                    step = step / 2
+
+                scale -= step / 2
+                for index, item in enumerate(model_data["R_0"]):
+                    R_t.append(item * (scale))
+            # run the differential equation model and calculate the error
+            self.beta_rand = R_t
+            self.solve_rand()
+            new_error = self.calculate_error(model_data, hyperparam_weights)
+            if new_error < min_error:
+                min_error = new_error
+            else:
+                if increase:
+                    increase = False
+                    change = True
+                else:
+                    increase = True
+                    change = True
+            iteration += 1
+            print("New_error: ", new_error, "Min_error: ", min_error, "success_threshold: ", success_threshold,
+                  "Escaped: ", escaped, "Iterations: ", iteration, "Scaler: ", scale)
+            if (iteration > 100):  # Stuck in the loop, error diverged
+                escaped = True
+                break
+        return scale
 
 
+def average(values):
+    mean = sum(values) / len(values)
+    variance = sum([((x - mean) ** 2) for x in values]) / len(values)
+    res = variance ** 0.5
+    count = 0
+    count_n = 0
+    for item in values:
+        if item - res > 0:
+            count += item
+            count_n += 1
+    return count / count_n
 
-#Here is where we put the model verification process.
+
+# Here is where we put the model verification process.
 if __name__ == '__main__':
-    processes = []
+    run_models = False
+    if (run_models == True):
+        processes = []
+        for index, data in enumerate(data_list):
+            p = multiprocessing.Process(target=runModelScenario, args=[data, index, 0])
+            p.start()
+            processes.append(p)
+        for process in processes:
+            process.join()
 
-    space_list = [(25,25), (50,50), (75,75), (100,100), (125,125), (150,150)]
-    population_list = [100,150,200,250,300]
     for index, data in enumerate(data_list):
-        # Verification process:
+        # runModelScenario(data, index, 0)
+        output_location = data["output"]["model_save_file"]
+        output_location = output_location.replace(".csv", "-datatype.png")
+        df0 = pd.read_csv(data["output"]["model_save_file"])
+        print("Input", data["output"]["model_save_file"])
+        features = ["Susceptible", "Exposed", "Infected", "Recovered", "Deceased", "R_0"]
+        full_model_data = {}
+        for feature in features:
+            df = pd.DataFrame()
+            df["Step"] = df0["Step"] / 96
+            df[feature] = df0[feature]  # *100
+            avg = []
+            low_ci_95 = []
+            high_ci_95 = []
+            for step in df["Step"].unique():
+                values = df[feature][df["Step"] == step]
+                f_mean = values.mean()
+                avg.append(f_mean)
 
+            df_stats = pd.DataFrame()
+            df_stats["Step"] = df["Step"].unique()
+            df_stats["mean"] = avg
+            full_model_data[feature] = df_stats["mean"]
+            full_model_data["Step"] = df_stats["Step"]
+
+        agent_count = data["model"]["epidemiology"]["num_agents"]
+        model_data = {}
+        iteration = 0
+        model_data["Step"] = full_model_data["Step"]
+        for feature in features:
+            model_data[feature] = []
+            iteration = 0
+            for value in full_model_data[feature]:
+                if iteration % 96 == 0:
+                    if feature == "R_0":
+                        model_data[feature].append(value)
+                    else:
+                        model_data[feature].append(value / agent_count)
+                iteration += 1
+        model_data["R_0"].append(0)
+        model_data["R_0"].append(0)
+        hyperparams = [0.2, 0.2, 0.2, 0.2, 0.2]  # Weights for SEIRD in error calculation
+        error_threshold = 0.001 * len(model_data["R_0"])  # We want on average to be 0.1 error on every step
+        step_size = 0.01  # Step size to increase the R_0 scaling for optimal c*R_0
+        diffeqmodel = DiffEq(data)
+        scale = diffeqmodel.optimize(model_data, step_size, error_threshold, hyperparams)
+        for index, item in enumerate(model_data["R_0"]):
+            model_data["R_0"][index] = item * (scale)
+        diffeqmodel.plot_R(model_data, output_location)
+
+        # Verification process:
+        # TODO: find a constant parameter that minimizes the error between the agent based model and the differential equation model
+        print("R_0 scalar: ", scale)
+        diffeqmodel.beta = average(model_data["R_0"])
+        diffeqmodel.beta_rand = model_data["R_0"]
+        diffeqmodel.solve()
+        diffeqmodel.solve_rand()
+        diffeqmodel.plot_abm(model_data, output_location)
+        diffeqmodel.plot_constant(output_location)
+        diffeqmodel.plot_random(output_location)
+        diffeqmodel.plot_diff(output_location)
+        diffeqmodel.plot_diff_abm(model_data, output_location)
         # 1. Initialize Differential model for a fixed parameter
+        # First visualizing a basic SEIRD model with the following parameters:
+        # beta -> constant transmission rate of infected individuals
+        # beta will have to be modified to match the spacial dimensions of the model.
+        # May have to be the case where B -> B(t)
+        # sigma -> average time/ probability of Exposed agents to become infectious
+        # gamma -> average time/ probability of Infected agents to become dead/recovered
+        # morality -> partition of infected agents that do not recover
+        # recovery -> partition of infected agents that recover recovery = (1-mortality)
+
+        # The model will report the following:
+        # S -> Susceptible agents
+        # E -> Exposed agents
+        # I -> Infectious agents
+        # R -> Recovered agents
+        # D -> Deceased agents
+
         # 2. Run a parameter sweep for R0 that minimizes the lsq between the two models.
         # 3. Run trial for varying parameters for R_diff.
         # 4. Save the values of R_diff and R_abm and find some relating factor in between them.
 
-
-        #2. Parameter sweep algorithm
+        # 2. Parameter sweep algorithm
         # For maximumm efficiency we will run trials of #2000 steps in a fixed environment.
         # We will run all 32 iterations in parallel and average the results and their variation values.
         # We evaluate the lsq for the model at that point.
         # Based on the size of the R(w) and whether it was an overestimate or under, we will reshift the prop_contagtion parameter.
         # One thing to note are all the parameters in the OG model and how they affect the overall effect on the model.
-        for population in population_list:
-            for space in space_list:
-                variable = (population, space)
-                p = multiprocessing.Process(target=runModelScenario, args=[data, index, variable])
-                p.start()
-                processes.append(p)
-                for process in processes:
-                    process.join()
+
 

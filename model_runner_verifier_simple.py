@@ -243,8 +243,8 @@ class DiffEq():
         self.r_0 = 0
         self.e_0 = data["model"]["epidemiology"]["prop_initial_infected"]
         self.i_0 = 0
-        self.s_0 = 1 - self.i_0
-        self.x_0 = np.array([self.s_0, self.i_0, self.e_0, self.r_0, self.d_0])
+        self.s_0 = 1 - self.e_0
+        self.x_0 = np.array([self.s_0,  self.e_0,self.i_0, self.r_0, self.d_0])
         self.timespan = np.arange(0, int(data["ensemble"]["steps"] / 96)+1  , 1)
 
 
@@ -327,6 +327,20 @@ class DiffEq():
         plt.savefig(output.replace("datatype", "diff_abm"),dpi=700)
         plt.close()
 
+    def plot_diff_abm_const(self, abm_data, output):
+        self.solution_rand = solve_ivp(self.F_simple, [0, int(data["ensemble"]["steps"] / 96)], self.x_0, t_eval=self.timespan)
+        plt.figure(figsize=(20, 10))
+        plt.title("Differential - ABM Data")
+        plt.xlabel('days')
+        plt.ylabel('Difference')
+        plt.plot(self.solution.y[0] - abm_data["Susceptible"], color="blue", label="Susceptible")
+        plt.plot(self.solution.y[1] - abm_data["Exposed"], color="purple", label="Exposed")
+        plt.plot(self.solution.y[2] - abm_data["Infected"], color="red", label="Infected")
+        plt.plot(self.solution.y[3] - abm_data["Recovered"], color="green", label="Recovered")
+        plt.plot(self.solution.y[4] - abm_data["Deceased"], color="black", label="Deceased")
+        plt.savefig(output.replace("datatype", "diff_abm_const"),dpi=700)
+        plt.close()
+
     def plot_abm(self, abm_data, output):
         plt.figure(figsize=(20, 10))
         plt.title("")
@@ -369,29 +383,93 @@ class DiffEq():
         increase = True #Begin with this value at true since R_0 is guaranteed to be an underestimate
         change  = False
         escaped = False
-
+        previous_error = 999999
         iteration = 0
         while min_error > success_threshold:
             R_t = []
             #Shift the parameter up and down
             if increase:
                 if change:
-                    step = step/2
+                    step = step*0.98
 
-                scale += step / 2
+                scale += step
                 for index, item in enumerate(model_data["R_0"]):
                     R_t.append(item * (scale))
             else:
                 if change:
-                    step = step / 2
+                    step = step*0.98
 
-                scale -= step / 2
+                scale -= step
                 for index, item in enumerate(model_data["R_0"]):
                     R_t.append(item * (scale))
             # run the differential equation model and calculate the error
             self.beta_rand = R_t
             self.solve_rand()
             new_error = self.calculate_error(model_data, hyperparam_weights)
+            if new_error < min_error: #This approximation is the best so far
+                min_error = new_error
+                previous_error = new_error
+            elif change != True:
+                if increase:
+                    increase = False
+                    change = True
+                else:
+                    increase = True
+                    change = True
+
+            if (new_error-previous_error) > 0: #This approximation is relatively worse
+                previous_error = new_error
+                if increase:
+                    increase = False
+                else:
+                    increase = True
+
+            iteration+= 1
+            print("New_error: ", new_error, "Min_error: ", min_error, "success_threshold: ", success_threshold,
+                  "Escaped: ", escaped, "Iterations: ", iteration, "Scaler: ", scale)
+            if (iteration > 100): #Stuck in the loop, error diverged
+                escaped = True
+                break
+        return scale
+
+    def calculate_error_const(self, model_data, hyperparam_weights):
+        error = 0
+        for step, value in enumerate(self.solution_rand.y[0]):
+            error+= hyperparam_weights[0] * (self.solution.y[0][step] - model_data["Susceptible"][step])**2
+            error+= hyperparam_weights[1] * (self.solution.y[1][step] - model_data["Exposed"][step])**2
+            error+= hyperparam_weights[2] * (self.solution.y[2][step] - model_data["Infected"][step])**2
+            error+= hyperparam_weights[3] * (self.solution.y[3][step] - model_data["Recovered"][step])**2
+            error+= hyperparam_weights[4] * (self.solution.y[4][step] - model_data["Deceased"][step])**2
+        return np.sqrt(error)
+
+    def optimize_const(self, model_data, step_size, success_threshold, hyperparam_weights):
+        scale = 1
+        min_error = 9999999
+        step = step_size
+        increase = True #Begin with this value at true since R_0 is guaranteed to be an underestimate
+        change  = False
+        escaped = False
+        R_const_static = average(model_data["R_0"])
+        iteration = 0
+        while min_error > success_threshold:
+            #Shift the parameter up and down
+            R_const = R_const_static
+            if increase:
+                if change:
+                    step = step/2
+
+                scale += step
+                R_const = R_const * scale
+            else:
+                if change:
+                    step = step / 2
+
+                scale -= step
+                R_const = R_const * scale
+            # run the differential equation model and calculate the error
+            self.beta = R_const
+            self.solve()
+            new_error = self.calculate_error_const(model_data, hyperparam_weights)
             if new_error < min_error:
                 min_error = new_error
             else:
@@ -410,16 +488,17 @@ class DiffEq():
         return scale
 
 
-
 def average(values):
     mean = sum(values) / len(values)
     variance = sum([((x - mean) ** 2) for x in values]) / len(values)
     res = variance ** 0.5
     count = 0
+    count_n = 0
     for item in values:
         if item - res > 0:
             count += item
-    return count/len(values)
+            count_n += 1
+    return count / count_n
 
 
 
@@ -481,15 +560,17 @@ if __name__ == '__main__':
         error_threshold = 0.001 * len(model_data["R_0"]) #We want on average to be 0.1 error on every step
         step_size = 0.01 #Step size to increase the R_0 scaling for optimal c*R_0
         diffeqmodel = DiffEq(data)
-        scale = diffeqmodel.optimize(model_data, step_size, error_threshold, hyperparams)
+        scale_rand = diffeqmodel.optimize(model_data, step_size, error_threshold, hyperparams)
+        scale_const = diffeqmodel.optimize_const(model_data, step_size, error_threshold, hyperparams)
         for index, item in enumerate(model_data["R_0"]):
-            model_data["R_0"][index] = item * (scale)
+            model_data["R_0"][index] = item * (scale_rand)
         diffeqmodel.plot_R(model_data, output_location)
-
+        diffeqmodel.beta = average(model_data["R_0"]) * scale_const
         # Verification process:
         #TODO: find a constant parameter that minimizes the error between the agent based model and the differential equation model
-        print("R_0 scalar: ", scale)
-        diffeqmodel.beta = average(model_data["R_0"])
+        print("R_0 rand scalar: ", scale_rand)
+        print("R_0 const scalar: ", scale_const)
+
         diffeqmodel.beta_rand = model_data["R_0"]
         diffeqmodel.solve()
         diffeqmodel.solve_rand()
@@ -498,6 +579,7 @@ if __name__ == '__main__':
         diffeqmodel.plot_random(output_location)
         diffeqmodel.plot_diff(output_location)
         diffeqmodel.plot_diff_abm(model_data, output_location)
+        diffeqmodel.plot_diff_abm_const(model_data, output_location)
         # 1. Initialize Differential model for a fixed parameter
         # First visualizing a basic SEIRD model with the following parameters:
             # beta -> constant transmission rate of infected individuals
