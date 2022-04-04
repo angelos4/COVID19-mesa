@@ -268,13 +268,9 @@ class DiffEq():
             ]
 
     def solve(self):
-        print(self.x_0)
-        print(self.beta)
         self.solution = solve_ivp(self.F_simple, [0,int(data["ensemble"]["steps"] / 96)+1], self.x_0, t_eval=self.timespan)
         #recreating the tables based on the count of agents in the diffeq model
     def solve_rand(self):
-        print(len(self.beta_rand))
-        print(self.beta_rand[0:10])
         self.solution_rand = solve_ivp(self.F_simple_varying_R, [0, int(data["ensemble"]["steps"] / 96)+1], self.x_0,
                                        t_eval=self.timespan)
 
@@ -354,14 +350,82 @@ class DiffEq():
         plt.savefig(output.replace("datatype", "R"),dpi=700)
         plt.close()
 
+
+    def calculate_error(self, model_data, hyperparam_weights):
+        error = 0
+        for step, value in enumerate(self.solution_rand.y[0]):
+            error+= hyperparam_weights[0] * (self.solution_rand.y[0][step] - model_data["Susceptible"][step])**2
+            error+= hyperparam_weights[1] * (self.solution_rand.y[1][step] - model_data["Exposed"][step])**2
+            error+= hyperparam_weights[2] * (self.solution_rand.y[2][step] - model_data["Infected"][step])**2
+            error+= hyperparam_weights[3] * (self.solution_rand.y[3][step] - model_data["Recovered"][step])**2
+            error+= hyperparam_weights[4] * (self.solution_rand.y[4][step] - model_data["Deceased"][step])**2
+        return np.sqrt(error)
+
+    #Runs through an iterated parameter sweep for a constant relative to R_0 and returns the value
+    def optimize(self, model_data, step_size, success_threshold, hyperparam_weights):
+        scale = 1
+        min_error = 9999999
+        step = step_size
+        increase = True #Begin with this value at true since R_0 is guaranteed to be an underestimate
+        change  = False
+        escaped = False
+
+        iteration = 0
+        while min_error > success_threshold:
+            R_t = []
+            #Shift the parameter up and down
+            if increase:
+                if change:
+                    step = step/2
+
+                scale += step / 2
+                for index, item in enumerate(model_data["R_0"]):
+                    R_t.append(item * (scale))
+            else:
+                if change:
+                    step = step / 2
+
+                scale -= step / 2
+                for index, item in enumerate(model_data["R_0"]):
+                    R_t.append(item * (scale))
+            # run the differential equation model and calculate the error
+            self.beta_rand = R_t
+            self.solve_rand()
+            new_error = self.calculate_error(model_data, hyperparam_weights)
+            if new_error < min_error:
+                min_error = new_error
+            else:
+                if increase:
+                    increase = False
+                    change = True
+                else:
+                    increase = True
+                    change = True
+            iteration+= 1
+            print("New_error: ", new_error, "Min_error: ", min_error, "success_threshold: ", success_threshold,
+                  "Escaped: ", escaped, "Iterations: ", iteration, "Scaler: ", scale)
+            if (iteration > 100): #Stuck in the loop, error diverged
+                escaped = True
+                break
+        return scale
+
+
+
 def average(values):
+    mean = sum(values) / len(values)
+    variance = sum([((x - mean) ** 2) for x in values]) / len(values)
+    res = variance ** 0.5
     count = 0
     for item in values:
-        count += item
+        if item - res > 0:
+            count += item
     return count/len(values)
+
+
+
 #Here is where we put the model verification process.
 if __name__ == '__main__':
-    run_models = True
+    run_models = False
     if (run_models == True):
        processes = []
        for index, data in enumerate(data_list):
@@ -411,27 +475,24 @@ if __name__ == '__main__':
                     else:
                         model_data[feature].append(value/agent_count)
                 iteration += 1
-
-
         model_data["R_0"].append(0)
         model_data["R_0"].append(0)
-	
+        hyperparams = [0.2,0.2,0.2,0.2,0.2] #Weights for SEIRD in error calculation
+        error_threshold = 0.001 * len(model_data["R_0"]) #We want on average to be 0.1 error on every step
+        step_size = 0.01 #Step size to increase the R_0 scaling for optimal c*R_0
         diffeqmodel = DiffEq(data)
-        diffeqmodel.plot_R(model_data, output_location)
+        scale = diffeqmodel.optimize(model_data, step_size, error_threshold, hyperparams)
         for index, item in enumerate(model_data["R_0"]):
-            model_data["R_0"][index] = item * 4.4
+            model_data["R_0"][index] = item * (scale)
+        diffeqmodel.plot_R(model_data, output_location)
+
         # Verification process:
-
-
-
+        #TODO: find a constant parameter that minimizes the error between the agent based model and the differential equation model
+        print("R_0 scalar: ", scale)
         diffeqmodel.beta = average(model_data["R_0"])
-
-
         diffeqmodel.beta_rand = model_data["R_0"]
         diffeqmodel.solve()
         diffeqmodel.solve_rand()
-
-
         diffeqmodel.plot_abm(model_data, output_location)
         diffeqmodel.plot_constant(output_location)
         diffeqmodel.plot_random(output_location)
