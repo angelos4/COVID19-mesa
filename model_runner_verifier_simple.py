@@ -199,7 +199,6 @@ def runModelScenario(data, index, iterative_input): #Function that runs a specif
 
     print("Parametrization complete:")
     print("")
-    print(f"Running file {filenames_list[index]}")
     print("")
     print(f"Executing an ensemble of size {num_iterations} using {num_steps} steps with {num_iterations} machine cores...")
 
