@@ -449,20 +449,25 @@ class DiffEq():
         increase = True #Begin with this value at true since R_0 is guaranteed to be an underestimate
         change  = False
         escaped = False
+        loss_history = {}
+        loss_change = 0
         R_const_static = average(model_data["R_0"])
         iteration = 0
+        previous_loss = 100
+        min_scale = 0
+        change_threshold = 0.01
         while min_error > success_threshold:
             #Shift the parameter up and down
             R_const = R_const_static
             if increase:
                 if change:
-                    step = step/2
+                    step = step/1.25
 
                 scale += step
                 R_const = R_const * scale
             else:
                 if change:
-                    step = step / 2
+                    step = step / 1.25
 
                 scale -= step
                 R_const = R_const * scale
@@ -470,15 +475,25 @@ class DiffEq():
             self.beta = R_const
             self.solve()
             new_error = self.calculate_error_const(model_data, hyperparam_weights)
+            loss_change = new_error - previous_loss
+            better = False
             if new_error < min_error:
                 min_error = new_error
+                min_scale = scale
+                better = True
+            if (loss_change < change_threshold and not(better)):#We are not optimizing properly revert to a historical loss
+                scale = min_scale
+                increase = not(loss_history[min_scale])
             else:
                 if increase:
                     increase = False
                     change = True
+                    loss_history[scale] = False
                 else:
+                    loss_history[scale] = True
                     increase = True
                     change = True
+
             iteration+= 1
             print("New_error: ", new_error, "Min_error: ", min_error, "success_threshold: ", success_threshold,
                   "Escaped: ", escaped, "Iterations: ", iteration, "Scaler: ", scale)
@@ -539,7 +554,6 @@ if __name__ == '__main__':
             df_stats["mean"] = avg
             full_model_data[feature] = df_stats["mean"]
             full_model_data["Step"] = df_stats["Step"]
-
         agent_count = data["model"]["epidemiology"]["num_agents"]
         model_data = {}
         iteration = 0
@@ -556,7 +570,7 @@ if __name__ == '__main__':
                 iteration += 1
         model_data["R_0"].append(0)
         model_data["R_0"].append(0)
-        hyperparams = [0.2,0.2,0.2,0.2,0.2] #Weights for SEIRD in error calculation
+        hyperparams = [0.25,0.25,0.25,0.25,0] #Weights for SEIRD in error calculation
         error_threshold = 0.001 * len(model_data["R_0"]) #We want on average to be 0.1 error on every step
         step_size = 0.01 #Step size to increase the R_0 scaling for optimal c*R_0
         diffeqmodel = DiffEq(data)
