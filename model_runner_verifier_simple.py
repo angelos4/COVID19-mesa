@@ -585,7 +585,7 @@ if __name__ == '__main__':
         model_data["R_0"].append(0)
         hyperparams = [0.25,0.25,0.25,0.25,0] #Weights for SEIRD in error calculation
         error_threshold = 0.001 * len(model_data["R_0"]) #We want on average to be 0.1 error on every step
-        step_size = 0.01 #Step size to increase the R_0 scaling for optimal c*R_0
+        step_size = 0.1 #Step size to increase the R_0 scaling for optimal c*R_0
         diffeqmodel = DiffEq(data)
         scale_rand = diffeqmodel.optimize(model_data, step_size, error_threshold, hyperparams)
         scale_const = diffeqmodel.optimize_const(model_data, step_size, error_threshold, hyperparams)
