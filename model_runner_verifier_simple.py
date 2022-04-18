@@ -555,12 +555,14 @@ if __name__ == '__main__':
 
     if (run_models == True):
        processes = []
-       for index, data in enumerate(data_list):
-           p = multiprocessing.Process(target=runModelScenario, args=[data, index, 0])
-           p.start()
-           processes.append(p)
-       for process in processes:
-           process.join()
+       for begin in range(int(96/6)):
+           for index in range(6*begin, 6*begin+6,1):
+               if index < 64:
+                   p = multiprocessing.Process(target=runModelScenario, args=[data_list[index], index, 0])
+                   p.start()
+                   processes.append(p)
+           for process in processes:
+               process.join()
     
     for index, data in enumerate(data_list):
         #runModelScenario(data, index, 0)
