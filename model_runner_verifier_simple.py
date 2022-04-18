@@ -24,6 +24,7 @@ import multiprocessing
 import os
 import glob
 import copy
+import matplotlib.patches as mpatches
 
 
 directory_list = []
@@ -531,11 +532,63 @@ def average(values):
     return count / count_n
 
 
+#input a plot, a portion of relevant data
+#optimize the data as you did before finding the relevant scale
+#using the parameters for the data we will create different plots representing the scaled values
+def combine_data(data, rand_d, const_d, prob):
+    input_location = data["output"]["model_save_file"]
+    output_location = input_location.replace(".csv", "-datatype.png")
+    df0 = pd.read_csv(input_location)
+    features = ["Susceptible", "Exposed", "Infected", "Recovered", "Deceased", "R_0"]
+    full_model_data = {}
+    for feature in features:
+        df = pd.DataFrame()
+        df["Step"] = df0["Step"] / 96
+        df[feature] = df0[feature]  # *100
+        avg = []
+        low_ci_95 = []
+        high_ci_95 = []
+        for step in df["Step"].unique():
+            values = df[feature][df["Step"] == step]
+            f_mean = values.mean()
+            avg.append(f_mean)
+
+        df_stats = pd.DataFrame()
+        df_stats["Step"] = df["Step"].unique()
+        df_stats["mean"] = avg
+        full_model_data[feature] = df_stats["mean"]
+        full_model_data["Step"] = df_stats["Step"]
+    agent_count = data["model"]["epidemiology"]["num_agents"]
+    model_data = {}
+    iteration = 0
+    model_data["Step"] = full_model_data["Step"]
+    for feature in features:
+        model_data[feature] = []
+        iteration = 0
+        for value in full_model_data[feature]:
+            if iteration % 96 == 0:
+                if feature == "R_0":
+                    model_data[feature].append(value)
+                else:
+                    model_data[feature].append(value / agent_count)
+            iteration += 1
+    model_data["R_0"].append(0)
+    model_data["R_0"].append(0)
+    hyperparams = [0.25, 0.25, 0.25, 0.25, 0]  # Weights for SEIRD in error calculation
+    error_threshold = 0.001 * len(model_data["R_0"])  # We want on average to be 0.1 error on every step
+    step_size = 0.1  # Step size to increase the R_0 scaling for optimal c*R_0
+    diffeqmodel = DiffEq(data)
+    scale_rand = diffeqmodel.optimize(model_data, step_size, error_threshold, hyperparams)
+    scale_const = diffeqmodel.optimize_const(model_data, step_size, error_threshold, hyperparams)
+    #We want to return scale_rand and scale_const
+    rand_d[prob] = scale_rand
+    const_d[prob] = scale_const
 
 #Here is where we put the model verification process.
 if __name__ == '__main__':
-    run_models = True
+    run_models = False
     run_extra = True
+    run_tests = False
     space_params = [50,75,100,125]
     population_params = [500,600,700,800]
     contagtion_params = [0.1,0.2,0.3,0.4]
@@ -562,72 +615,129 @@ if __name__ == '__main__':
                    processes.append(p)
            for process in processes:
                process.join()
-    
-    for index, data in enumerate(data_list):
-        #runModelScenario(data, index, 0)
-        output_location = data["output"]["model_save_file"]
-        output_location = output_location.replace(".csv", "-datatype.png")
-        df0 = pd.read_csv(data["output"]["model_save_file"])
-        print("Input",data["output"]["model_save_file"])
-        features = ["Susceptible", "Exposed", "Infected", "Recovered", "Deceased", "R_0"]
-        full_model_data = {}
-        for feature in features:
-            df = pd.DataFrame()
-            df["Step"] = df0["Step"]/96
-            df[feature] = df0[feature]  # *100
-            avg = []
-            low_ci_95 = []
-            high_ci_95 = []
-            for step in df["Step"].unique():
-                values = df[feature][df["Step"] == step]
-                f_mean = values.mean()
-                avg.append(f_mean)
 
-            df_stats = pd.DataFrame()
-            df_stats["Step"] = df["Step"].unique()
-            df_stats["mean"] = avg
-            full_model_data[feature] = df_stats["mean"]
-            full_model_data["Step"] = df_stats["Step"]
-        agent_count = data["model"]["epidemiology"]["num_agents"]
-        model_data = {}
-        iteration = 0
-        model_data["Step"] = full_model_data["Step"]
-        for feature in features:
-            model_data[feature] = []
-            iteration = 0
-            for value in full_model_data[feature]:
-                if iteration % 96 == 0:
-                    if feature == "R_0":
-                        model_data[feature].append(value)
-                    else:
-                        model_data[feature].append(value/agent_count)
-                iteration += 1
-        model_data["R_0"].append(0)
-        model_data["R_0"].append(0)
-        hyperparams = [0.25,0.25,0.25,0.25,0] #Weights for SEIRD in error calculation
-        error_threshold = 0.001 * len(model_data["R_0"]) #We want on average to be 0.1 error on every step
-        step_size = 0.1 #Step size to increase the R_0 scaling for optimal c*R_0
-        diffeqmodel = DiffEq(data)
-        scale_rand = diffeqmodel.optimize(model_data, step_size, error_threshold, hyperparams)
-        scale_const = diffeqmodel.optimize_const(model_data, step_size, error_threshold, hyperparams)
-        for index, item in enumerate(model_data["R_0"]):
-            model_data["R_0"][index] = item * (scale_rand)
-        diffeqmodel.plot_R(model_data, output_location)
-        diffeqmodel.beta = average(model_data["R_0"]) * scale_const
-        # Verification process:
-        #TODO: find a constant parameter that minimizes the error between the agent based model and the differential equation model
-        print("R_0 rand scalar: ", scale_rand)
-        print("R_0 const scalar: ", scale_const)
 
-        diffeqmodel.beta_rand = model_data["R_0"]
-        diffeqmodel.solve()
-        diffeqmodel.solve_rand()
-        diffeqmodel.plot_abm(model_data, output_location)
-        diffeqmodel.plot_constant(output_location)
-        diffeqmodel.plot_random(output_location)
-        diffeqmodel.plot_diff(output_location)
-        diffeqmodel.plot_diff_abm(model_data, output_location)
-        diffeqmodel.plot_diff_abm_const(model_data, output_location)
+    outputs_rand = {}
+    outputs_const = {}
+    data_list_iterator = 0
+    for space in space_params:
+        outputs_rand[space] = {}
+        outputs_const[space] = {}
+        for pop in population_params:
+            outputs_rand[space][pop] = {}
+            outputs_const[space][pop] = {}
+            for cont in contagtion_params:
+                p = multiprocessing.Process(target=runModelScenario, args=[data_list[data_list_iterator], outputs_rand[space][pop], outputs_const[space][pop], cont])
+                data_list_iterator += 1
+                p.start()
+                processes.append(p)
+
+    for process in processes:
+        process.join()
+
+    print(outputs_rand)
+    print(outputs_const)
+
+    #By this stage we should have the parameters good to go
+    location = "scenarios/Verifier/"
+    colors = ["red", "blue", "green", "brown"]
+    cont_list_rand = []
+    cont_list_const = []
+    color_iterator = 0
+    for space in space_params:
+        #create a new plot
+        plt.figure(figsize=(200.7, 100.27))
+        plt.ticklabel_format(style='plain', axis='y')
+        fig, ax = plt.subplots()
+        legends_list = []
+        ax.set_xlabel("Prob_contagtion")
+        ax.set_ylabel("Scalar_Multiplier")
+        for pop in population_params:
+            #initialize new subplot, cont_list
+            cont_list = []
+            for cont in contagtion_params:
+                cont_list_rand.append(outputs_rand[space][pop][cont])
+                cont_list_const.append(outputs_const[space][pop][cont])
+            #Plot the subplot
+            ax.plot(contagtion_params, cont_list, color=colors[color_iterator], label=pop, linewidth=1)
+            legend = mpatches.Patch(color=colors[color_iterator])
+            color_iterator = (color_iterator)%4
+            legends_list.append(legend)
+
+        #Save the plot here
+        ax.set_title("space=" + str(space))
+        plt.axis('tight')
+        plt.legend(legends_list, population_params, bbox_to_anchor=(0.90, 1.1), loc="upper left", borderaxespad=0, fontsize='xx-small')
+        output = "scenarios/Verifier/" + "space(" + str(space) + ").png"
+        plt.savefig(output, dpi=700)
+        plt.close()
+    #Done
+
+
+    # for index, data in enumerate(data_list):
+    #     #runModelScenario(data, index, 0)
+    #     output_location = data["output"]["model_save_file"]
+    #     output_location = output_location.replace(".csv", "-datatype.png")
+    #     df0 = pd.read_csv(data["output"]["model_save_file"])
+    #     features = ["Susceptible", "Exposed", "Infected", "Recovered", "Deceased", "R_0"]
+    #     full_model_data = {}
+    #     for feature in features:
+    #         df = pd.DataFrame()
+    #         df["Step"] = df0["Step"]/96
+    #         df[feature] = df0[feature]  # *100
+    #         avg = []
+    #         low_ci_95 = []
+    #         high_ci_95 = []
+    #         for step in df["Step"].unique():
+    #             values = df[feature][df["Step"] == step]
+    #             f_mean = values.mean()
+    #             avg.append(f_mean)
+    #
+    #         df_stats = pd.DataFrame()
+    #         df_stats["Step"] = df["Step"].unique()
+    #         df_stats["mean"] = avg
+    #         full_model_data[feature] = df_stats["mean"]
+    #         full_model_data["Step"] = df_stats["Step"]
+    #     agent_count = data["model"]["epidemiology"]["num_agents"]
+    #     model_data = {}
+    #     iteration = 0
+    #     model_data["Step"] = full_model_data["Step"]
+    #     for feature in features:
+    #         model_data[feature] = []
+    #         iteration = 0
+    #         for value in full_model_data[feature]:
+    #             if iteration % 96 == 0:
+    #                 if feature == "R_0":
+    #                     model_data[feature].append(value)
+    #                 else:
+    #                     model_data[feature].append(value/agent_count)
+    #             iteration += 1
+    #     model_data["R_0"].append(0)
+    #     model_data["R_0"].append(0)
+    #     hyperparams = [0.25,0.25,0.25,0.25,0] #Weights for SEIRD in error calculation
+    #     error_threshold = 0.001 * len(model_data["R_0"]) #We want on average to be 0.1 error on every step
+    #     step_size = 0.1 #Step size to increase the R_0 scaling for optimal c*R_0
+    #     diffeqmodel = DiffEq(data)
+    #     scale_rand = diffeqmodel.optimize(model_data, step_size, error_threshold, hyperparams)
+    #     scale_const = diffeqmodel.optimize_const(model_data, step_size, error_threshold, hyperparams)
+    #     for index, item in enumerate(model_data["R_0"]):
+    #         model_data["R_0"][index] = item * (scale_rand)
+    #     diffeqmodel.plot_R(model_data, output_location)
+    #     diffeqmodel.beta = average(model_data["R_0"]) * scale_const
+    #     # Verification process:
+    #     #TODO: find a constant parameter that minimizes the error between the agent based model and the differential equation model
+    #     print("R_0 rand scalar: ", scale_rand)
+    #     print("R_0 const scalar: ", scale_const)
+    #
+    #     diffeqmodel.beta_rand = model_data["R_0"]
+    #     diffeqmodel.solve()
+    #     diffeqmodel.solve_rand()
+    #     diffeqmodel.plot_abm(model_data, output_location)
+    #     diffeqmodel.plot_constant(output_location)
+    #     diffeqmodel.plot_random(output_location)
+    #     diffeqmodel.plot_diff(output_location)
+    #     diffeqmodel.plot_diff_abm(model_data, output_location)
+    #     diffeqmodel.plot_diff_abm_const(model_data, output_location)
         # 1. Initialize Differential model for a fixed parameter
         # First visualizing a basic SEIRD model with the following parameters:
             # beta -> constant transmission rate of infected individuals
