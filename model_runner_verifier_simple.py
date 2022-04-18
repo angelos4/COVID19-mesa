@@ -544,7 +544,7 @@ if __name__ == '__main__':
         for space in space_params:
             for pop in population_params:
                 for cont in contagtion_params:
-                    new_list = copy.deepcopy(data_list)
+                    new_list = copy.deepcopy(dict(data_list))
                     new_list["model"]["epidemiology"]["num_agents"] = pop
                     new_list["model"]["epidemiology"]["width"] = space
                     new_list["model"]["epidemiology"]["height"] = space
