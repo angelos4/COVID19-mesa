@@ -390,14 +390,14 @@ class DiffEq():
             #Shift the parameter up and down
             if increase:
                 if change:
-                    step = step*0.98
+                    step = step/2
 
                 scale += step
                 for index, item in enumerate(model_data["R_0"]):
                     R_t.append(item * (scale))
             else:
                 if change:
-                    step = step*0.98
+                    step = step/2
 
                 scale -= step
                 for index, item in enumerate(model_data["R_0"]):
@@ -406,23 +406,32 @@ class DiffEq():
             self.beta_rand = R_t
             self.solve_rand()
             new_error = self.calculate_error(model_data, hyperparam_weights)
-            if new_error < min_error: #This approximation is the best so far
-                min_error = new_error
-                previous_error = new_error
-            elif change != True:
-                if increase:
-                    increase = False
-                    change = True
-                else:
-                    increase = True
-                    change = True
+            diff = (new_error - previous_error)**2
+            previous_error = new_error
 
-            if (new_error-previous_error) > 0: #This approximation is relatively worse
-                previous_error = new_error
-                if increase:
-                    increase = False
-                else:
-                    increase = True
+            # This approximation is the best so far
+            # If this approximation is better then we continue traversing at the same speed
+
+            if new_error < min_error:
+                min_error = new_error
+                min_scale = scale
+                min_increase = increase
+                continue
+
+            #This is not a better estimate, so change directions and change velocity
+            if change != True:
+                change = True
+
+            if increase:
+                increase = False
+            else:
+                increase = True
+
+            change_threshold = 0.05
+            if (diff) < change_threshold: #This approximation is going nowhere
+                scale = min_scale
+                increase = not(min_increase)
+                change = False
 
             iteration+= 1
             print("New_error: ", new_error, "Min_error: ", min_error, "success_threshold: ", success_threshold,
@@ -449,13 +458,10 @@ class DiffEq():
         increase = True #Begin with this value at true since R_0 is guaranteed to be an underestimate
         change  = False
         escaped = False
-        loss_history = {}
-        loss_change = 0
         R_const_static = average(model_data["R_0"])
         iteration = 0
-        previous_loss = 100
+        previous_error = 100
         min_scale = 0
-        change_threshold = 0.01
         while min_error > success_threshold:
             #Shift the parameter up and down
             R_const = R_const_static
@@ -475,24 +481,32 @@ class DiffEq():
             self.beta = R_const
             self.solve()
             new_error = self.calculate_error_const(model_data, hyperparam_weights)
-            loss_change = new_error - previous_loss
-            better = False
+            diff = (new_error - previous_error) ** 2
+            previous_error = new_error
+
+            # This approximation is the best so far
+            # If this approximation is better then we continue traversing at the same speed
+
             if new_error < min_error:
                 min_error = new_error
                 min_scale = scale
-                better = True
-            if (loss_change < change_threshold and not(better)):#We are not optimizing properly revert to a historical loss
-                scale = min_scale
-                increase = not(loss_history[min_scale])
+                min_increase = increase
+                continue
+
+            # This is not a better estimate, so change directions and change velocity
+            if change != True:
+                change = True
+
+            if increase:
+                increase = False
             else:
-                if increase:
-                    increase = False
-                    change = True
-                    loss_history[scale] = False
-                else:
-                    loss_history[scale] = True
-                    increase = True
-                    change = True
+                increase = True
+
+            change_threshold = 0.05
+            if (diff) < change_threshold:  # This approximation is going nowhere
+                scale = min_scale
+                increase = not (min_increase)
+                change = False
 
             iteration+= 1
             print("New_error: ", new_error, "Min_error: ", min_error, "success_threshold: ", success_threshold,
