@@ -427,8 +427,8 @@ class DiffEq():
             else:
                 increase = True
 
-            change_threshold = 0.05
-            if (diff) < change_threshold: #This approximation is going nowhere
+
+            if (diff) < 0: #This approximation is going nowhere
                 scale = min_scale
                 increase = not(min_increase)
                 change = False
@@ -502,8 +502,7 @@ class DiffEq():
             else:
                 increase = True
 
-            change_threshold = 0.05
-            if (diff) < change_threshold:  # This approximation is going nowhere
+            if (diff) < 0:  # This approximation is going nowhere
                 scale = min_scale
                 increase = not (min_increase)
                 change = False
