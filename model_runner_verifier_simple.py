@@ -18,6 +18,7 @@ import matplotlib.pyplot as plt
 import pandas as pd
 import json
 import sys
+import numpy as np
 import concurrent.futures
 import multiprocessing
 import os
@@ -406,7 +407,7 @@ class DiffEq():
             self.beta_rand = R_t
             self.solve_rand()
             new_error = self.calculate_error(model_data, hyperparam_weights)
-            diff = (new_error - previous_error)**2
+            diff = np.abs(new_error - previous_error)
             previous_error = new_error
 
             # This approximation is the best so far
@@ -428,7 +429,7 @@ class DiffEq():
                 increase = True
 
 
-            if (diff) < 0: #This approximation is going nowhere
+            if (diff) < 0.001: #This approximation is going nowhere
                 scale = min_scale
                 increase = not(min_increase)
                 change = False
@@ -482,7 +483,7 @@ class DiffEq():
             self.beta = R_const
             self.solve()
             new_error = self.calculate_error_const(model_data, hyperparam_weights)
-            diff = (new_error - previous_error) ** 2
+            diff = np.abs(new_error - previous_error)
             previous_error = new_error
 
             # This approximation is the best so far
@@ -503,7 +504,7 @@ class DiffEq():
             else:
                 increase = True
 
-            if (diff) < 0:  # This approximation is going nowhere
+            if (diff) < 0.001:  # This approximation is going nowhere
                 scale = min_scale
                 increase = not (min_increase)
                 change = False
