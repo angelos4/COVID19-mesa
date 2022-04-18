@@ -432,6 +432,7 @@ class DiffEq():
                 scale = min_scale
                 increase = not(min_increase)
                 change = False
+                step = step_size
 
             iteration+= 1
             print("New_error: ", new_error, "Min_error: ", min_error, "success_threshold: ", success_threshold,
@@ -506,6 +507,7 @@ class DiffEq():
                 scale = min_scale
                 increase = not (min_increase)
                 change = False
+                step = step_size
 
             iteration+= 1
             print("New_error: ", new_error, "Min_error: ", min_error, "success_threshold: ", success_threshold,
