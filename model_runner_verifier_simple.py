@@ -23,7 +23,7 @@ import concurrent.futures
 import multiprocessing
 import os
 import glob
-
+import copy
 
 
 directory_list = []
@@ -441,7 +441,7 @@ class DiffEq():
             if (iteration > 100): #Stuck in the loop, error diverged
                 escaped = True
                 break
-        return scale
+        return min_scale
 
     def calculate_error_const(self, model_data, hyperparam_weights):
         error = 0
@@ -516,7 +516,7 @@ class DiffEq():
             if (iteration > 100): #Stuck in the loop, error diverged
                 escaped = True
                 break
-        return scale
+        return min_scale
 
 
 def average(values):
@@ -535,7 +535,24 @@ def average(values):
 
 #Here is where we put the model verification process.
 if __name__ == '__main__':
-    run_models = False
+    run_models = True
+    run_extra = True
+    space_params = [50,75,100,125]
+    population_params = [500,600,700,800]
+    contagtion_params = [0.1,0.2,0.3,0.4]
+    if (run_extra):
+        for space in space_params:
+            for pop in population_params:
+                for cont in contagtion_params:
+                    new_list = copy.deepcopy(data_list)
+                    new_list["model"]["epidemiology"]["num_agents"] = pop
+                    new_list["model"]["epidemiology"]["width"] = space
+                    new_list["model"]["epidemiology"]["height"] = space
+                    new_list["model"]["epidemiology"]["prob_contagion"] = cont
+                    name = new_list["output"]["model_save_file"]
+                    new_list["output"]["model_save_file"] = name.replace(".csv", "_"+str(pop)+"_"+str(space)+"_"+str(cont)+".csv")
+                    data_list.append(new_list)
+
     if (run_models == True):
        processes = []
        for index, data in enumerate(data_list):
