@@ -591,7 +591,9 @@ if __name__ == '__main__':
     run_tests = False
     space_params = [50,75,100,125]
     population_params = [500,600,700,800]
-    contagtion_params = [0.15,0.25,0.35,0.45]
+    #contagtion_params = [0.15,0.25,0.35,0.45] 
+    contagtion_params = [0.1, 0.2, 0.3, 0.4]
+    # contagtion_params = [0.1, 0.15, 0.2, 0.25, 0.3, 0.35, 0.4, 0.45]
     if (run_extra):
         for space in space_params:
             for pop in population_params:
