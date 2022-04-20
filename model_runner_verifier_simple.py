@@ -591,7 +591,7 @@ if __name__ == '__main__':
     run_tests = False
     space_params = [50,75,100,125]
     population_params = [500,600,700,800]
-    contagtion_params = [0.1,0.2,0.3,0.4]
+    contagtion_params = [0.15,0.25,0.35,0.45]
     if (run_extra):
         for space in space_params:
             for pop in population_params:
@@ -616,6 +616,10 @@ if __name__ == '__main__':
            for process in processes:
                process.join()
 
+    space_params = [50, 75, 100, 125]
+    population_params = [500, 600, 700, 800]
+    # contagtion_params = [0.1, 0.15, 0.2, 0.25, 0.3, 0.35, 0.4, 0.45]
+    contagtion_params = [0.1, 0.2, 0.3, 0.4]
     processes = []
     manager = multiprocessing.Manager()
     outputs_rand = manager.dict()
@@ -651,7 +655,7 @@ if __name__ == '__main__':
     location = "scenarios/Verifier/"
     colors = ["red", "blue", "green", "brown"]
     cont_list_rand = []
-    cont_list_const = []
+
     color_iterator = 0
     for space in space_params:
         #create a new plot
@@ -666,22 +670,52 @@ if __name__ == '__main__':
             cont_list_rand = []
             for cont in contagtion_params:
                 cont_list_rand.append(outputs_rand[space][pop][cont])
-                cont_list_const.append(outputs_const[space][pop][cont])
             #Plot the subplot
             ax.plot(contagtion_params, cont_list_rand, color=colors[color_iterator], label=pop, linewidth=1)
             legend = mpatches.Patch(color=colors[color_iterator])
-            color_iterator = (color_iterator)%4
+            color_iterator = (color_iterator+1)%4
             legends_list.append(legend)
             cont_list_rand = []
+
+        #Save the plot here
+        ax.set_title("RAND space=" + str(space))
+        plt.axis('tight')
+        plt.legend(legends_list, population_params, bbox_to_anchor=(0.90, 1.1), loc="upper left", borderaxespad=0, fontsize='xx-small')
+        output = "scenarios/Verifier/" + "RAND_space(" + str(space) + ").png"
+        plt.savefig(output, dpi=700)
+        plt.close()
+
+    cont_list_const = []
+    color_iterator = 0
+    #Do the same for const
+    for space in space_params:
+        #create a new plot
+        plt.figure(figsize=(200.7, 100.27))
+        plt.ticklabel_format(style='plain', axis='y')
+        fig, ax = plt.subplots()
+        legends_list = []
+        ax.set_xlabel("Prob_contagtion")
+        ax.set_ylabel("Scalar_Multiplier")
+        for pop in population_params:
+            #initialize new subplot, cont_list
+            cont_list_rand = []
+            for cont in contagtion_params:
+                cont_list_const.append(outputs_const[space][pop][cont])
+            #Plot the subplot
+            ax.plot(contagtion_params, cont_list_const, color=colors[color_iterator], label=pop, linewidth=1)
+            legend = mpatches.Patch(color=colors[color_iterator])
+            color_iterator = (color_iterator+1)%4
+            legends_list.append(legend)
             cont_list_const = []
 
         #Save the plot here
-        ax.set_title("space=" + str(space))
+        ax.set_title("CONST space=" + str(space))
         plt.axis('tight')
         plt.legend(legends_list, population_params, bbox_to_anchor=(0.90, 1.1), loc="upper left", borderaxespad=0, fontsize='xx-small')
-        output = "scenarios/Verifier/" + "space(" + str(space) + ").png"
+        output = "scenarios/Verifier/" + "CONST_space(" + str(space) + ").png"
         plt.savefig(output, dpi=700)
         plt.close()
+
     #Done
 
 
