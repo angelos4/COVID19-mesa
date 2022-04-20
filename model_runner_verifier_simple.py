@@ -25,6 +25,7 @@ import os
 import glob
 import copy
 import matplotlib.patches as mpatches
+from os.path import exists
 
 
 directory_list = []
@@ -591,9 +592,8 @@ if __name__ == '__main__':
     run_tests = False
     space_params = [50,75,100,125]
     population_params = [500,600,700,800]
-    #contagtion_params = [0.15,0.25,0.35,0.45] 
     contagtion_params = [0.1, 0.2, 0.3, 0.4]
-    # contagtion_params = [0.1, 0.15, 0.2, 0.25, 0.3, 0.35, 0.4, 0.45]
+    contagtion_params = [0.1, 0.15, 0.2, 0.25, 0.3, 0.35, 0.4, 0.45]
     if (run_extra):
         for space in space_params:
             for pop in population_params:
@@ -612,16 +612,13 @@ if __name__ == '__main__':
        for begin in range(int(96/6)):
            for index in range(6*begin, 6*begin+6,1):
                if index < 64:
-                   p = multiprocessing.Process(target=runModelScenario, args=[data_list[index], index, 0])
-                   p.start()
-                   processes.append(p)
+                   if not(exists(data_list[index]["output"]["model_save_file"])):
+                       p = multiprocessing.Process(target=runModelScenario, args=[data_list[index], index, 0])
+                       p.start()
+                       processes.append(p)
            for process in processes:
                process.join()
 
-    space_params = [50, 75, 100, 125]
-    population_params = [500, 600, 700, 800]
-    # contagtion_params = [0.1, 0.15, 0.2, 0.25, 0.3, 0.35, 0.4, 0.45]
-    contagtion_params = [0.1, 0.2, 0.3, 0.4]
     processes = []
     manager = multiprocessing.Manager()
     outputs_rand = manager.dict()
@@ -673,14 +670,14 @@ if __name__ == '__main__':
             for cont in contagtion_params:
                 cont_list_rand.append(outputs_rand[space][pop][cont])
             #Plot the subplot
-            ax.plot(contagtion_params, cont_list_rand, color=colors[color_iterator], label=pop, linewidth=1)
+            ax.plot(contagtion_params, cont_list_rand, color=colors[color_iterator], label=("Population"+str(pop)), linewidth=1)
             legend = mpatches.Patch(color=colors[color_iterator])
             color_iterator = (color_iterator+1)%4
             legends_list.append(legend)
             cont_list_rand = []
 
         #Save the plot here
-        ax.set_title("RAND space=" + str(space))
+        ax.set_title("RAND space=(" + str(space)+","+ str(space)+")")
         plt.axis('tight')
         plt.legend(legends_list, population_params, bbox_to_anchor=(0.90, 1.1), loc="upper left", borderaxespad=0, fontsize='xx-small')
         output = "scenarios/Verifier/" + "RAND_space(" + str(space) + ").png"
