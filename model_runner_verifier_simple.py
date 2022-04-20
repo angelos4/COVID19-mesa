@@ -587,7 +587,7 @@ def combine_data(data, rand_d, const_d, space, pop, prob):
 
 #Here is where we put the model verification process.
 if __name__ == '__main__':
-    run_models = False
+    run_models = True
     run_extra = True
     run_tests = False
     space_params = [50,75,100,125]
