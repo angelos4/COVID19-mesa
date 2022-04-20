@@ -436,8 +436,7 @@ class DiffEq():
                 step = step_size
 
             iteration+= 1
-            print("New_error: ", new_error, "Min_error: ", min_error, "success_threshold: ", success_threshold,
-                  "Escaped: ", escaped, "Iterations: ", iteration, "Scaler: ", scale)
+            #print("New_error: ", new_error, "Min_error: ", min_error, "success_threshold: ", success_threshold, "Escaped: ", escaped, "Iterations: ", iteration, "Scaler: ", scale)
             if (iteration > 100): #Stuck in the loop, error diverged
                 escaped = True
                 break
@@ -511,8 +510,7 @@ class DiffEq():
                 step = step_size
 
             iteration+= 1
-            print("New_error: ", new_error, "Min_error: ", min_error, "success_threshold: ", success_threshold,
-                  "Escaped: ", escaped, "Iterations: ", iteration, "Scaler: ", scale)
+            #print("New_error: ", new_error, "Min_error: ", min_error, "success_threshold: ", success_threshold, "Escaped: ", escaped, "Iterations: ", iteration, "Scaler: ", scale)
             if (iteration > 100): #Stuck in the loop, error diverged
                 escaped = True
                 break
@@ -535,7 +533,7 @@ def average(values):
 #input a plot, a portion of relevant data
 #optimize the data as you did before finding the relevant scale
 #using the parameters for the data we will create different plots representing the scaled values
-def combine_data(data, rand_d, const_d, prob):
+def combine_data(data, rand_d, const_d, space, pop, prob):
     input_location = data["output"]["model_save_file"]
     output_location = input_location.replace(".csv", "-datatype.png")
     df0 = pd.read_csv(input_location)
@@ -581,8 +579,10 @@ def combine_data(data, rand_d, const_d, prob):
     scale_rand = diffeqmodel.optimize(model_data, step_size, error_threshold, hyperparams)
     scale_const = diffeqmodel.optimize_const(model_data, step_size, error_threshold, hyperparams)
     #We want to return scale_rand and scale_const
-    rand_d[prob] = scale_rand
-    const_d[prob] = scale_const
+    rand_d[space][pop][prob] = scale_rand
+    const_d[space][pop][prob] = scale_const
+    print(rand_d[space][pop])
+    print(const_d[space][pop])
 
 #Here is where we put the model verification process.
 if __name__ == '__main__':
@@ -616,25 +616,34 @@ if __name__ == '__main__':
            for process in processes:
                process.join()
 
-
-    outputs_rand = {}
-    outputs_const = {}
+    processes = []
+    manager = multiprocessing.Manager()
+    outputs_rand = manager.dict()
+    outputs_const = manager.dict()
     data_list_iterator = 0
     for space in space_params:
-        outputs_rand[space] = {}
-        outputs_const[space] = {}
+        outputs_rand[space] = manager.dict()
+        outputs_const[space] = manager.dict()
         for pop in population_params:
-            outputs_rand[space][pop] = {}
-            outputs_const[space][pop] = {}
+            outputs_rand[space][pop] = manager.dict()
+            outputs_const[space][pop] = manager.dict()
+
+
+    for space in space_params:
+        for pop in population_params:
             for cont in contagtion_params:
-                p = multiprocessing.Process(target=runModelScenario, args=[data_list[data_list_iterator], outputs_rand[space][pop], outputs_const[space][pop], cont])
-                data_list_iterator += 1
+
+                print("Running data for iteration:", data_list_iterator)
+                p = multiprocessing.Process(target=combine_data, args=[data_list[data_list_iterator],outputs_rand,outputs_const,space, pop, cont])
+
                 p.start()
                 processes.append(p)
+                data_list_iterator += 1
 
     for process in processes:
-        process.join()
-
+        process.join()    
+    
+    print("Final Output ::::::::::::::::::::::\n\n")
     print(outputs_rand)
     print(outputs_const)
 
@@ -654,15 +663,17 @@ if __name__ == '__main__':
         ax.set_ylabel("Scalar_Multiplier")
         for pop in population_params:
             #initialize new subplot, cont_list
-            cont_list = []
+            cont_list_rand = []
             for cont in contagtion_params:
                 cont_list_rand.append(outputs_rand[space][pop][cont])
                 cont_list_const.append(outputs_const[space][pop][cont])
             #Plot the subplot
-            ax.plot(contagtion_params, cont_list, color=colors[color_iterator], label=pop, linewidth=1)
+            ax.plot(contagtion_params, cont_list_rand, color=colors[color_iterator], label=pop, linewidth=1)
             legend = mpatches.Patch(color=colors[color_iterator])
             color_iterator = (color_iterator)%4
             legends_list.append(legend)
+            cont_list_rand = []
+            cont_list_const = []
 
         #Save the plot here
         ax.set_title("space=" + str(space))
