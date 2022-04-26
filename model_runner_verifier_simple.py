@@ -611,14 +611,16 @@ if __name__ == '__main__':
        processes = []
        for begin in range(int(96/6)):
            for index in range(6*begin, 6*begin+6,1):
-               if index < 64:
+               if index:
                    if not(exists(data_list[index]["output"]["model_save_file"])):
                        p = multiprocessing.Process(target=runModelScenario, args=[data_list[index], index, 0])
                        p.start()
                        processes.append(p)
+                   else:
+                       print("Found:", data_list[index]["output"]["model_save_file"])
            for process in processes:
                process.join()
-
+    os.system("pause")
     processes = []
     manager = multiprocessing.Manager()
     outputs_rand = manager.dict()
