@@ -441,7 +441,7 @@ class DiffEq():
             if (iteration > 100): #Stuck in the loop, error diverged
                 escaped = True
                 break
-        return min_scale
+        return min_scale, min_error
 
     def calculate_error_const(self, model_data, hyperparam_weights):
         error = 0
@@ -515,7 +515,7 @@ class DiffEq():
             if (iteration > 100): #Stuck in the loop, error diverged
                 escaped = True
                 break
-        return min_scale
+        return min_scale, min_error, R_const_static
 
 
 def average(values):
@@ -534,7 +534,7 @@ def average(values):
 #input a plot, a portion of relevant data
 #optimize the data as you did before finding the relevant scale
 #using the parameters for the data we will create different plots representing the scaled values
-def combine_data(data, rand_d, const_d, space, pop, prob):
+def combine_data(data, rand_d, const_d, space, pop, prob, rand_err_d, const_err_d, ravg_d, r_d):
     input_location = data["output"]["model_save_file"]
     output_location = input_location.replace(".csv", "-datatype.png")
     df0 = pd.read_csv(input_location)
@@ -577,17 +577,19 @@ def combine_data(data, rand_d, const_d, space, pop, prob):
     error_threshold = 0.001 * len(model_data["R_0"])  # We want on average to be 0.1 error on every step
     step_size = 0.1  # Step size to increase the R_0 scaling for optimal c*R_0
     diffeqmodel = DiffEq(data)
-    scale_rand = diffeqmodel.optimize(model_data, step_size, error_threshold, hyperparams)
-    scale_const = diffeqmodel.optimize_const(model_data, step_size, error_threshold, hyperparams)
+    scale_rand, err_rand = diffeqmodel.optimize(model_data, step_size, error_threshold, hyperparams)
+    scale_const, err_const, r_avg = diffeqmodel.optimize_const(model_data, step_size, error_threshold, hyperparams)
     #We want to return scale_rand and scale_const
     rand_d[space][pop][prob] = scale_rand
     const_d[space][pop][prob] = scale_const
-    print(rand_d[space][pop])
-    print(const_d[space][pop])
+    rand_err_d[space][pop][prob] = err_rand
+    const_err_d[space][pop][prob] = err_const
+    ravg_d[space][pop][prob] = r_avg
+    r_d[space][pop][prob] = r_avg * scale_const
 
 #Here is where we put the model verification process.
 if __name__ == '__main__':
-    run_models = True
+    run_models = False
     run_extra = True
     run_tests = False
     space_params = [50,75,100,125]
@@ -625,13 +627,25 @@ if __name__ == '__main__':
     manager = multiprocessing.Manager()
     outputs_rand = manager.dict()
     outputs_const = manager.dict()
+    outputs_rand_error = manager.dict()
+    outputs_const_error = manager.dict()
+    outputs_R_avg = manager.dict()
+    outputs_R = manager.dict()
     data_list_iterator = 0
     for space in space_params:
         outputs_rand[space] = manager.dict()
         outputs_const[space] = manager.dict()
+        outputs_rand_error[space] = manager.dict()
+        outputs_const_error[space] = manager.dict()
+        outputs_R_avg[space] = manager.dict()
+        outputs_R[space] = manager.dict()
         for pop in population_params:
             outputs_rand[space][pop] = manager.dict()
             outputs_const[space][pop] = manager.dict()
+            outputs_rand_error[space][pop] = manager.dict()
+            outputs_const_error[space][pop] = manager.dict()
+            outputs_R_avg[space][pop] = manager.dict()
+            outputs_R[space][pop] = manager.dict()
 
 
     for space in space_params:
@@ -639,7 +653,7 @@ if __name__ == '__main__':
             for cont in contagtion_params:
 
                 print("Running data for iteration:", data_list_iterator)
-                p = multiprocessing.Process(target=combine_data, args=[data_list[data_list_iterator],outputs_rand,outputs_const,space, pop, cont])
+                p = multiprocessing.Process(target=combine_data, args=[data_list[data_list_iterator],outputs_rand,outputs_const,space, pop, cont, outputs_rand_error, outputs_const_error, outputs_R_avg, outputs_R])
 
                 p.start()
                 processes.append(p)
@@ -648,10 +662,31 @@ if __name__ == '__main__':
     for process in processes:
         process.join()    
     
-    print("Final Output ::::::::::::::::::::::\n\n")
-    print(outputs_rand)
-    print(outputs_const)
+    print("Saving Final Output::::::::::::::::::::::\n\n")
+    #Create a dataframe with columns: "Space", "Population", "Contagtion", "Scalar", "Error"
+    data_rand = {"Space":[], "Population": [], "Contagtion": [], "Scalar": [], "Error" : []}
+    data_const = {"Space": [], "Population": [], "Contagtion": [], "Scalar": [], "Error": [], "ABM_R_avg": [], "R": []}
+    for space in space_params:
+        for pop in population_params:
+            for cont in contagtion_params:
+                data_rand["Space"].append(space)
+                data_rand["Population"].append(pop)
+                data_rand["Contagtion"].append(cont)
+                data_rand["Scalar"].append(outputs_rand[space][pop][cont])
+                data_rand["Error"].append(outputs_rand_error[space][pop][cont])
 
+                data_const["Space"].append(space)
+                data_const["Population"].append(pop)
+                data_const["Contagtion"].append(cont)
+                data_const["Scalar"].append(outputs_const[space][pop][cont])
+                data_const["Error"].append(outputs_const_error[space][pop][cont])
+                data_const["ABM_R_avg"].append(outputs_R_avg[space][pop][cont])
+                data_const["R"].append(outputs_R[space][pop][cont])
+
+    rand_pd = pd.DataFrame(data=data_rand)
+    const_pd = pd.DataFrame(data=data_const)
+    rand_pd.to_csv("scenarios/Verifier/results_rand.csv")
+    const_pd.to_csv("scenarios/Verifier/results_const.csv")
     #By this stage we should have the parameters good to go
     location = "scenarios/Verifier/"
     colors = ["red", "blue", "green", "brown"]
@@ -717,6 +752,74 @@ if __name__ == '__main__':
         plt.savefig(output, dpi=700)
         plt.close()
 
+
+
+
+
+    #Save figures for the error now
+    err_list_rand = []
+    color_iterator = 0
+    for space in space_params:
+        # create a new plot
+        plt.figure(figsize=(200.7, 100.27))
+        plt.ticklabel_format(style='plain', axis='y')
+        fig, ax = plt.subplots()
+        legends_list = []
+        ax.set_xlabel("Prob_contagtion")
+        ax.set_ylabel("Error")
+        for pop in population_params:
+            # initialize new subplot, cont_list
+            err_list_rand = []
+            for cont in contagtion_params:
+                err_list_rand.append(outputs_rand_error[space][pop][cont])
+            # Plot the subplot
+            ax.plot(contagtion_params, err_list_rand, color=colors[color_iterator], label=("Population" + str(pop)),
+                    linewidth=1)
+            legend = mpatches.Patch(color=colors[color_iterator])
+            color_iterator = (color_iterator + 1) % 4
+            legends_list.append(legend)
+            err_list_rand = []
+
+        # Save the plot here
+        ax.set_title("RAND Error space=(" + str(space) + "," + str(space) + ")")
+        plt.axis('tight')
+        plt.legend(legends_list, population_params, bbox_to_anchor=(0.90, 1.1), loc="upper left", borderaxespad=0,
+                   fontsize='xx-small')
+        output = "scenarios/Verifier/" + "RAND_Error_space(" + str(space) + ").png"
+        plt.savefig(output, dpi=700)
+        plt.close()
+
+    err_list_const = []
+    color_iterator = 0
+    # Do the same for const
+    for space in space_params:
+        # create a new plot
+        plt.figure(figsize=(200.7, 100.27))
+        plt.ticklabel_format(style='plain', axis='y')
+        fig, ax = plt.subplots()
+        legends_list = []
+        ax.set_xlabel("Prob_contagtion")
+        ax.set_ylabel("Scalar_Multiplier")
+        for pop in population_params:
+            # initialize new subplot, cont_list
+            err_list_const = []
+            for cont in contagtion_params:
+                err_list_const.append(outputs_const_error[space][pop][cont])
+            # Plot the subplot
+            ax.plot(contagtion_params, err_list_const, color=colors[color_iterator], label=pop, linewidth=1)
+            legend = mpatches.Patch(color=colors[color_iterator])
+            color_iterator = (color_iterator + 1) % 4
+            legends_list.append(legend)
+            err_list_const = []
+
+        # Save the plot here
+        ax.set_title("CONST Error space=" + str(space))
+        plt.axis('tight')
+        plt.legend(legends_list, population_params, bbox_to_anchor=(0.90, 1.1), loc="upper left", borderaxespad=0,
+                   fontsize='xx-small')
+        output = "scenarios/Verifier/" + "CONST_Error_space(" + str(space) + ").png"
+        plt.savefig(output, dpi=700)
+        plt.close()
     #Done
 
 
