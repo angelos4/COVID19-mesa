@@ -589,13 +589,13 @@ def combine_data(data, rand_d, const_d, space, pop, prob, rand_err_d, const_err_
 
 #Here is where we put the model verification process.
 if __name__ == '__main__':
-    run_models = False
+    run_models = True
     run_extra = True
     run_tests = False
     space_params = [50,75,100,125]
     population_params = [500,600,700,800]
     contagtion_params = [0.1, 0.2, 0.3, 0.4]
-    contagtion_params = [0.05, 0.1, 0.15, 0.2, 0.25, 0.3, 0.35, 0.4, 0.45]
+    contagtion_params = [0.01, 0.025 ,0.05, 0.075, 0.1, 0.15, 0.2, 0.25, 0.3, 0.35, 0.4, 0.45]
     if (run_extra):
         for space in space_params:
             for pop in population_params:
@@ -609,20 +609,26 @@ if __name__ == '__main__':
                     new_list["output"]["model_save_file"] = name.replace(".csv", "_"+str(pop)+"_"+str(space)+"_"+str(cont)+".csv")
                     data_list.append(new_list)
 
+    max_process_count = 96
+    total_count = 0
+    process_count = 0
+    trial_count = len(data_list)
     if (run_models == True):
-       processes = []
-       for begin in range(int(3*96/6)):
-           for index in range(6*begin, 6*begin+6,1):
-               if index:
-                   if not(exists(data_list[index]["output"]["model_save_file"])):
-                       p = multiprocessing.Process(target=runModelScenario, args=[data_list[index], index, 0])
-                       p.start()
-                       processes.append(p)
-                   else:
-                       print("Found:", data_list[index]["output"]["model_save_file"])
-           for process in processes:
-               process.join()
-    os.system("pause")
+        while (total_count < trial_count):
+            processes = []
+            total_count = 0
+            process_count = 0
+            for data in data_list:
+                if process_count < max_process_count:
+                    total_count += 1
+                    if not (exists(data["output"]["model_save_file"])): #if the trial does not exist
+                        process_count += 1
+                        p = multiprocessing.Process(target=runModelScenario, args=[data, 0, 0])
+                        p.start()
+                        processes.append(p)
+            for process in processes:
+                process.join()
+
     processes = []
     manager = multiprocessing.Manager()
     outputs_rand = manager.dict()
@@ -647,20 +653,38 @@ if __name__ == '__main__':
             outputs_R_avg[space][pop] = manager.dict()
             outputs_R[space][pop] = manager.dict()
 
+    max_process_count = 96
+    total_count = 0
+    process_count = 0
+    trial_count = len(data_list)
+    previous_df_rand = pd.read_csv("scenarios/Verifier/results_rand.csv")
+    previous_df_const = pd.read_csv("scenarios/Verifier/results_const.csv")
+    while(total_count < trial_count):
+        processes = []
+        total_count = 0
+        process_count = 0
+        for space in space_params:
+            for pop in population_params:
+                for cont in contagtion_params:
+                    if process_count < max_process_count:
+                        total_count += 1
+                        if not(space in previous_df_rand["Space"].unique() and pop in previous_df_rand["Population"].unique() and cont in previous_df_rand["Contagtion"].unique()):
+                            process_count += 1
+                            print("Running data for iteration:", data_list_iterator, space, pop, cont)
+                            p = multiprocessing.Process(target=combine_data, args=[data_list[data_list_iterator],outputs_rand,outputs_const,space, pop, cont, outputs_rand_error, outputs_const_error, outputs_R_avg, outputs_R])
+                            p.start()
+                            processes.append(p)
+                            data_list_iterator += 1
+                        else:
+                            outputs_rand[space][pop][cont] = previous_df_rand["Space" == space]["Population" == pop]["Contagtion" == cont]["Scalar"]
+                            outputs_const[space][pop][cont] = previous_df_const["Space" == space]["Population" == pop]["Contagtion" == cont]["Scalar"]
+                            outputs_rand_error[space][pop][cont] = previous_df_rand["Space" == space]["Population" == pop]["Contagtion" == cont]["Error"]
+                            outputs_const_error[space][pop][cont] = previous_df_const["Space" == space]["Population" == pop]["Contagtion" == cont]["Error"]
+                            outputs_R_avg[space][pop][cont] = previous_df_const["Space" == space]["Population" == pop]["Contagtion" == cont]["ABM_R_avg"]
+                            outputs_R[space][pop][cont] = previous_df_const["Space" == space]["Population" == pop]["Contagtion" == cont]["R"]
 
-    for space in space_params:
-        for pop in population_params:
-            for cont in contagtion_params:
-
-                print("Running data for iteration:", data_list_iterator)
-                p = multiprocessing.Process(target=combine_data, args=[data_list[data_list_iterator],outputs_rand,outputs_const,space, pop, cont, outputs_rand_error, outputs_const_error, outputs_R_avg, outputs_R])
-
-                p.start()
-                processes.append(p)
-                data_list_iterator += 1
-
-    for process in processes:
-        process.join()    
+        for process in processes:
+            process.join()
     
     print("Saving Final Output::::::::::::::::::::::\n\n")
     #Create a dataframe with columns: "Space", "Population", "Contagtion", "Scalar", "Error"
