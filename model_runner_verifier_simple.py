@@ -469,13 +469,13 @@ class DiffEq():
             R_const = R_const_static
             if increase:
                 if change:
-                    step = step / 1.25
+                    step = step / 2
 
                 scale += step
                 R_const = R_const * scale
             else:
                 if change:
-                    step = step / 1.25
+                    step = step / 2
 
                 scale -= step
                 R_const = R_const * scale
@@ -485,8 +485,8 @@ class DiffEq():
             previous_error = new_error
             new_error = self.calculate_error_const(model_data, hyperparam_weights)
             diff = np.abs(new_error - previous_error)
-            print("New_error: ", new_error, "Min_error: ", min_error, "Increase: ", increase, "Iterations: ",
-                  iteration, "Scaler: ", scale, "Stepsize:", step_size)
+            #print("New_error: ", new_error, "Min_error: ", min_error, "Increase: ", increase, "Iterations: ",
+            #      iteration, "Scaler: ", scale, "Stepsize:", step_size)
             # This approximation is the best so far
             # If this approximation is better then we continue traversing at the same speed
 
@@ -503,7 +503,7 @@ class DiffEq():
             if (new_error > previous_error):
                 increase = not (increase)  # Change directions
 
-            if (diff) < 0.001:  # This approximation is going nowhere
+            if (diff) < 0.00001:  # This approximation is going nowhere
                 scale = min_scale
                 increase = not (min_increase)
                 change = False
@@ -514,6 +514,9 @@ class DiffEq():
             if (iteration > 100):  # Stuck in the loop, error diverged
                 escaped = True
                 break
+        if (R_const_static == 0):
+            min_error = 0
+            min_scale = 0
         return min_scale, min_error, R_const_static
 
 
@@ -575,7 +578,7 @@ def combine_data(data, rand_d, const_d, space, pop, prob, rand_err_d, const_err_
     model_data["R_0"].append(0)
     model_data["R_0"].append(0)
     hyperparams = [0.25, 0.25, 0.25, 0.25, 0]  # Weights for SEIRD in error calculation
-    error_threshold = 0.001 * len(model_data["R_0"])  # We want on average to be 0.1 error on every step
+    error_threshold = 0.0001 * len(model_data["R_0"])  # We want on average to be 0.1 error on every step
     step_size = 0.1  # Step size to increase the R_0 scaling for optimal c*R_0
     diffeqmodel = DiffEq(data)
     scale_rand, err_rand = diffeqmodel.optimize(model_data, step_size, error_threshold, hyperparams)

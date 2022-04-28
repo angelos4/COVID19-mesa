@@ -629,6 +629,7 @@ def optimize_inv(func, step_size, success_threshold, params,  R):
 
             if (scale-step) < 0.00001:
                 scale -= step/2
+                step = step/2
                 change = True
             else:
                 scale -= step
@@ -834,6 +835,8 @@ def verify_accross_R(data, R, params):
 
     prob, min_err = optimize_inv(func2, 0.01, 0.0001, params, R)  # Gets the probability of contagtion based on the params from Generate function based on space and population
     data["model"]["epidemiology"]["prob_contagion"] = prob
+    out = data["output"]["model_save_file"]
+    data["output"]["model_save_file"] = out.replace(".csv", f"R({R}).csv")
     runModelScenario(data, 0, 0)
     df0 = pd.read_csv(result_loc)
     features = ["Susceptible", "Exposed", "Infected", "Recovered", "Deceased", "R_0"]
