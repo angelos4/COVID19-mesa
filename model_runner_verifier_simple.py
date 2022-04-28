@@ -595,7 +595,7 @@ if __name__ == '__main__':
     space_params = [50,75,100,125]
     population_params = [500,600,700,800]
     contagtion_params = [0.1, 0.2, 0.3, 0.4]
-    contagtion_params = [0.1, 0.15, 0.2, 0.25, 0.3, 0.35, 0.4, 0.45]
+    contagtion_params = [0.05, 0.1, 0.15, 0.2, 0.25, 0.3, 0.35, 0.4, 0.45]
     if (run_extra):
         for space in space_params:
             for pop in population_params:
@@ -611,7 +611,7 @@ if __name__ == '__main__':
 
     if (run_models == True):
        processes = []
-       for begin in range(int(96/6)):
+       for begin in range(int(3*96/6)):
            for index in range(6*begin, 6*begin+6,1):
                if index:
                    if not(exists(data_list[index]["output"]["model_save_file"])):
