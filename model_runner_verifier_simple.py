@@ -485,7 +485,8 @@ class DiffEq():
             previous_error = new_error
             new_error = self.calculate_error_const(model_data, hyperparam_weights)
             diff = np.abs(new_error - previous_error)
-
+            print("New_error: ", new_error, "Min_error: ", min_error, "Increase: ", increase, "Iterations: ",
+                  iteration, "Scaler: ", scale, "Stepsize:", step_size)
             # This approximation is the best so far
             # If this approximation is better then we continue traversing at the same speed
 

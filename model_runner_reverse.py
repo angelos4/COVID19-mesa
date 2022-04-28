@@ -880,7 +880,7 @@ if __name__ == '__main__':
     #This will be difficult but will be useful for estimating best scalar for undetermined input
     #for this instance we will simply assume that the data uses entries within space, pop and cont above
     #Our input within the lookup will be ["Space" = space]["Pop"= pop] we want to find a sufficient prob_contagtion given a value of R_0
-    R = 10
+    R = 4
     space = 50
     population = 800
     data = pd.read_csv("scenarios/Verifier/results_const.csv")
@@ -897,7 +897,7 @@ if __name__ == '__main__':
     data["model"]["epidemiology"]["height"] = space
     data["model"]["epidemiology"]["num_agents"] = population
     data["output"]["model_save_file"] = "scenarios/Verifier/Test_nokmob/Verification_Test.csv"
-    data["ensemble"]["runs"] = 4 #Change to 96
+    data["ensemble"]["runs"] = 96 #Change to 96
     data["ensemble"]["steps"] = 10000
 
     if not (exists(data["output"]["model_save_file"])):
@@ -959,8 +959,26 @@ if __name__ == '__main__':
     error =diff_model.Verify_Assertion(model_data, hyperparams)
     print("Total_Error: ", error, "Score: ", 100-100*error/((data["ensemble"]["steps"]/96)+2))
 
-    results_dict = {}
+    results_list = []
+    plt.figure(figsize=(200.7, 100.27))
+    plt.ticklabel_format(style='plain', axis='y')
+    fig, ax = plt.subplots()
+    ax.set_xlabel("R")
+    ax.set_ylabel("Error (%)")
     for r_val in range(1,10,1):
+        error = verify_accross_R(data, r_val, params)
+        percent = 100 * error / ((data["ensemble"]["steps"] / 96) + 2)
+        results_list.append(percent)
+
+    ax.plot(range(1,10,1), results_list, color="red", label="Errors", linewidth=1)
+    ax.set_title("ABM model errors across different R values" + str(space))
+    plt.axis('tight')
+    output = "scenarios/Verifier/" + "R_value_errors.png"
+    plt.savefig(output, dpi=700)
+    plt.close()
+
+    #Output the error
+
 
     #Given our value for R_0, we create a const diffeq model with that value
 
