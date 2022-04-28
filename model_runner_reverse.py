@@ -425,7 +425,7 @@ class DiffEq():
         # Save the plot here
         ax.set_title("Both Results")
         plt.axis('tight')
-        plt.legend(legends_list, feature_list, bbox_to_anchor=(0.90, 1.1), loc="upper left", borderaxespad=0,
+        plt.legend(legends_list, combined_list, bbox_to_anchor=(0.90, 1.1), loc="upper left", borderaxespad=0,
                    fontsize='xx-small')
         plt.savefig(output, dpi=700)
         plt.close()
