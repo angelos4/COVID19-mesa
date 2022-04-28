@@ -840,7 +840,7 @@ def verify_accross_R(data, R, params):
     print(out.replace(".csv", f"R({R}).csv"))
     if not(exists(data["output"]["model_save_file"])):
         runModelScenario(data, 0, 0)
-    df0 = pd.read_csv(result_loc)
+    df0 = pd.read_csv(data["output"]["model_save_file"])
     features = ["Susceptible", "Exposed", "Infected", "Recovered", "Deceased", "R_0"]
     full_model_data = {}
     for feature in features:
