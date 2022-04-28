@@ -1,6 +1,9 @@
 .venv
 __pycache__
 .png
-*.csv
+scenarios/Verifier/Test_nokmob
+
+scenarios/Verifier/Test_kmob
+
 .idea
 
