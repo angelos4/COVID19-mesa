@@ -451,7 +451,7 @@ model_params = {
     "agent_increment":0,
     "model_increment":1,
     "iteration":1,
-    "vector_movement":False
+    "vector_movement":True
 }
 server = ModularServer(CovidModel,
                        [grid,chart,chart_epidemiology,chart_personal_value, chart_cumulative_effectiveness,vaccinated_age_group,Achart,Bchart,Dchart],

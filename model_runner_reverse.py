@@ -377,6 +377,16 @@ class DiffEq():
             error+= hyperparam_weights[4] * (self.solution_rand.y[4][step] - model_data["Deceased"][step])**2
         return np.sqrt(error)
 
+    def Verify_Assertion(self, model_data, hyperparam_weights):
+        error = 0
+        for step, value in enumerate(self.solution_rand.y[0]):
+            error += hyperparam_weights[0] * (self.solution_rand.y[0][step] - model_data["Susceptible"][step]) ** 2
+            error += hyperparam_weights[1] * (self.solution_rand.y[1][step] - model_data["Exposed"][step]) ** 2
+            error += hyperparam_weights[2] * (self.solution_rand.y[2][step] - model_data["Infected"][step]) ** 2
+            error += hyperparam_weights[3] * (self.solution_rand.y[3][step] - model_data["Recovered"][step]) ** 2
+            error += hyperparam_weights[4] * (self.solution_rand.y[4][step] - model_data["Deceased"][step]) ** 2
+        return np.sqrt(error)
+
     #Runs through an iterated parameter sweep for a constant relative to R_0 and returns the value
     def optimize(self, model_data, step_size, success_threshold, hyperparam_weights):
         scale = 1
@@ -515,7 +525,7 @@ class DiffEq():
             if (iteration > 100): #Stuck in the loop, error diverged
                 escaped = True
                 break
-        return min_scale, min_error, R_const_static
+        return min_scale, min_error
 
 
 def average(values):
@@ -534,7 +544,7 @@ def average(values):
 #input a plot, a portion of relevant data
 #optimize the data as you did before finding the relevant scale
 #using the parameters for the data we will create different plots representing the scaled values
-def combine_data(data, rand_d, const_d, space, pop, prob, rand_err_d, const_err_d, ravg_d, r_d):
+def combine_data(data, rand_d, const_d, space, pop, prob, rand_err_d, const_err_d):
     input_location = data["output"]["model_save_file"]
     output_location = input_location.replace(".csv", "-datatype.png")
     df0 = pd.read_csv(input_location)
@@ -578,407 +588,62 @@ def combine_data(data, rand_d, const_d, space, pop, prob, rand_err_d, const_err_
     step_size = 0.1  # Step size to increase the R_0 scaling for optimal c*R_0
     diffeqmodel = DiffEq(data)
     scale_rand, err_rand = diffeqmodel.optimize(model_data, step_size, error_threshold, hyperparams)
-    scale_const, err_const, r_avg = diffeqmodel.optimize_const(model_data, step_size, error_threshold, hyperparams)
+    scale_const, err_const = diffeqmodel.optimize_const(model_data, step_size, error_threshold, hyperparams)
     #We want to return scale_rand and scale_const
     rand_d[space][pop][prob] = scale_rand
     const_d[space][pop][prob] = scale_const
     rand_err_d[space][pop][prob] = err_rand
     const_err_d[space][pop][prob] = err_const
-    ravg_d[space][pop][prob] = average(model_data["R_0"])
-    r_d[space][pop][prob] = average(model_data["R_0"]) * scale_const
+
+def Generate_Function(data, space, pop):
+    #Find out what function to use and how to regress
+    return []
+
+def Generate_Inverse(params, space, pop):
+    #Using the function and the parameters from the regression, return the inverse
+    return 0.1
+
+
 
 #Here is where we put the model verification process.
 if __name__ == '__main__':
-    run_models = True
-    run_extra = True
-    run_tests = False
-    space_params = [50,75]
-    population_params = [500,600,700,800]
-    contagtion_params = [0.01, 0.025 ,0.05, 0.075, 0.1, 0.15, 0.2, 0.25, 0.3, 0.35, 0.4, 0.45]
-    data_list_dict = {}
-    if (run_extra):
-        for space in space_params:
-            data_list_dict[space] = {}
-            for pop in population_params:
-                data_list_dict[space][pop] = {}
-                for cont in contagtion_params:
-                    new_list = copy.deepcopy(data_list[0])
-                    new_list["model"]["epidemiology"]["num_agents"] = pop
-                    new_list["model"]["epidemiology"]["width"] = space
-                    new_list["model"]["epidemiology"]["height"] = space
-                    new_list["model"]["epidemiology"]["prob_contagion"] = cont
-                    name = new_list["output"]["model_save_file"]
-                    new_list["output"]["model_save_file"] = name.replace(".csv", "_"+str(pop)+"_"+str(space)+"_"+str(cont)+".csv")
-                    data_list.append(new_list)
-                    data_list_dict[space][pop][cont] = new_list
-
-    max_process_count = 96
-    total_count = 0
-    process_count = 0
-    trial_count = len(data_list)
-    if (run_models == True):
-        while (total_count < trial_count):
-            processes = []
-            total_count = 0
-            process_count = 0
-            for space in space_params:
-                for pop in population_params:
-                    for cont in contagtion_params:
-                        data = data_list_dict[space][pop][cont]
-                        if process_count < max_process_count:
-                            total_count += 1
-                            if not (exists(data["output"]["model_save_file"])): #if the trial does not exist
-                                process_count += data["ensemble"]["runs"]
-                                p = multiprocessing.Process(target=runModelScenario, args=[data, 0, 0])
-                                p.start()
-                                processes.append(p)
-            for process in processes:
-                process.join()
-
-    processes = []
-    manager = multiprocessing.Manager()
-    outputs_rand = manager.dict()
-    outputs_const = manager.dict()
-    outputs_rand_error = manager.dict()
-    outputs_const_error = manager.dict()
-    outputs_R_avg = manager.dict()
-    outputs_R = manager.dict()
-    data_list_iterator = 0
-    for space in space_params:
-        outputs_rand[space] = manager.dict()
-        outputs_const[space] = manager.dict()
-        outputs_rand_error[space] = manager.dict()
-        outputs_const_error[space] = manager.dict()
-        outputs_R_avg[space] = manager.dict()
-        outputs_R[space] = manager.dict()
-        for pop in population_params:
-            outputs_rand[space][pop] = manager.dict()
-            outputs_const[space][pop] = manager.dict()
-            outputs_rand_error[space][pop] = manager.dict()
-            outputs_const_error[space][pop] = manager.dict()
-            outputs_R_avg[space][pop] = manager.dict()
-            outputs_R[space][pop] = manager.dict()
-
-    max_process_count = 96
-    total_count = 0
-    process_count = 0
-    trial_count = len(data_list)
-    previous_df_rand = pd.read_csv("scenarios/Verifier/results_rand.csv")
-    previous_df_const = pd.read_csv("scenarios/Verifier/results_const.csv")
-    while(total_count < trial_count):
-        processes = []
-        total_count = 0
-        process_count = 0
-        for space in space_params:
-            for pop in population_params:
-                for cont in contagtion_params:
-                    data = data_list_dict[space][pop][cont]
-                    if process_count < max_process_count:
-                        total_count += 1
-                        #if not(space in previous_df_rand["Space"].unique() and pop in previous_df_rand["Population"].unique() and cont in previous_df_rand["Contagtion"].unique()):
-                        if (True):
-                            process_count += 1
-                            print("Running data for:", space, pop, cont)
-                            p = multiprocessing.Process(target=combine_data, args=[data,outputs_rand,outputs_const,space, pop, cont, outputs_rand_error, outputs_const_error, outputs_R_avg, outputs_R])
-                            p.start()
-                            processes.append(p)
-                        else:
-                            outputs_rand[space][pop][cont] = previous_df_rand["Space" == space]["Population" == pop]["Contagtion" == cont]["Scalar"]
-                            outputs_const[space][pop][cont] = previous_df_const["Space" == space]["Population" == pop]["Contagtion" == cont]["Scalar"]
-                            outputs_rand_error[space][pop][cont] = previous_df_rand["Space" == space]["Population" == pop]["Contagtion" == cont]["Error"]
-                            outputs_const_error[space][pop][cont] = previous_df_const["Space" == space]["Population" == pop]["Contagtion" == cont]["Error"]
-                            outputs_R_avg[space][pop][cont] = previous_df_const["Space" == space]["Population" == pop]["Contagtion" == cont]["ABM_R_avg"]
-                            outputs_R[space][pop][cont] = previous_df_const["Space" == space]["Population" == pop]["Contagtion" == cont]["R"]
-
-        for process in processes:
-            process.join()
-    
-    print("Saving Final Output::::::::::::::::::::::\n\n")
-    #Create a dataframe with columns: "Space", "Population", "Contagtion", "Scalar", "Error"
-    data_rand = {"Space":[], "Population": [], "Contagtion": [], "Scalar": [], "Error" : []}
-    data_const = {"Space": [], "Population": [], "Contagtion": [], "Scalar": [], "Error": [], "ABM_R_avg": [], "R": []}
-    for space in space_params:
-        for pop in population_params:
-            for cont in contagtion_params:
-                data_rand["Space"].append(space)
-                data_rand["Population"].append(pop)
-                data_rand["Contagtion"].append(cont)
-                data_rand["Scalar"].append(outputs_rand[space][pop][cont])
-                data_rand["Error"].append(outputs_rand_error[space][pop][cont])
-
-                data_const["Space"].append(space)
-                data_const["Population"].append(pop)
-                data_const["Contagtion"].append(cont)
-                data_const["Scalar"].append(outputs_const[space][pop][cont])
-                data_const["Error"].append(outputs_const_error[space][pop][cont])
-                data_const["ABM_R_avg"].append(outputs_R_avg[space][pop][cont])
-                data_const["R"].append(outputs_R[space][pop][cont])
-
-    rand_pd = pd.DataFrame(data=data_rand)
-    const_pd = pd.DataFrame(data=data_const)
-    rand_pd.to_csv("scenarios/Verifier/results_rand.csv")
-    const_pd.to_csv("scenarios/Verifier/results_const.csv")
-    #By this stage we should have the parameters good to go
-    location = "scenarios/Verifier/"
-    colors = ["red", "blue", "green", "brown"]
-    cont_list_rand = []
-
-    color_iterator = 0
-    for space in space_params:
-        #create a new plot
-        plt.figure(figsize=(200.7, 100.27))
-        plt.ticklabel_format(style='plain', axis='y')
-        fig, ax = plt.subplots()
-        legends_list = []
-        ax.set_xlabel("Prob_contagtion")
-        ax.set_ylabel("Scalar_Multiplier")
-        for pop in population_params:
-            #initialize new subplot, cont_list
-            cont_list_rand = []
-            for cont in contagtion_params:
-                cont_list_rand.append(outputs_rand[space][pop][cont])
-            #Plot the subplot
-            ax.plot(contagtion_params, cont_list_rand, color=colors[color_iterator], label=("Population"+str(pop)), linewidth=1)
-            legend = mpatches.Patch(color=colors[color_iterator])
-            color_iterator = (color_iterator+1)%4
-            legends_list.append(legend)
-            cont_list_rand = []
-
-        #Save the plot here
-        ax.set_title("RAND space=(" + str(space)+","+ str(space)+")")
-        plt.axis('tight')
-        plt.legend(legends_list, population_params, bbox_to_anchor=(0.90, 1.1), loc="upper left", borderaxespad=0, fontsize='xx-small')
-        output = "scenarios/Verifier/" + "RAND_space(" + str(space) + ").png"
-        plt.savefig(output, dpi=700)
-        plt.close()
-
-    cont_list_const = []
-    color_iterator = 0
-    #Do the same for const
-    for space in space_params:
-        #create a new plot
-        plt.figure(figsize=(200.7, 100.27))
-        plt.ticklabel_format(style='plain', axis='y')
-        fig, ax = plt.subplots()
-        legends_list = []
-        ax.set_xlabel("Prob_contagtion")
-        ax.set_ylabel("Scalar_Multiplier")
-        for pop in population_params:
-            #initialize new subplot, cont_list
-            cont_list_rand = []
-            for cont in contagtion_params:
-                cont_list_const.append(outputs_const[space][pop][cont])
-            #Plot the subplot
-            ax.plot(contagtion_params, cont_list_const, color=colors[color_iterator], label=pop, linewidth=1)
-            legend = mpatches.Patch(color=colors[color_iterator])
-            color_iterator = (color_iterator+1)%4
-            legends_list.append(legend)
-            cont_list_const = []
-
-        #Save the plot here
-        ax.set_title("CONST space=" + str(space))
-        plt.axis('tight')
-        plt.legend(legends_list, population_params, bbox_to_anchor=(0.90, 1.1), loc="upper left", borderaxespad=0, fontsize='xx-small')
-        output = "scenarios/Verifier/" + "CONST_space(" + str(space) + ").png"
-        plt.savefig(output, dpi=700)
-        plt.close()
+    #Given our scalar data in the form of a csv file, we want to generate a f(space,pop,cont) = scalar by finding an equation in the form f(x,y,z) that best fits the data
+    #This will be difficult but will be useful for estimating best scalar for undetermined input
+    #for this instance we will simply assume that the data uses entries within space, pop and cont above
+    #Our input within the lookup will be ["Space" = space]["Pop"= pop] we want to find a sufficient prob_contagtion given a value of R_0
+    R = 2
+    space = 50
+    population = 800
+    data = pd.read_csv("scenarios/Verifier/results_const.csv")
+    params = Generate_Function(data, space, population) #Prints the estimated function f(prob) and returns any parameters such as constants
+    prob = Generate_Inverse(params, space, population) #Gets the probability of contagtion based on the params from Generate function based on space and population
 
 
 
+    diff_model = DiffEq(data)
+    #Run constant diffmodel
+    output_loc = "scenarios/Verifier/Test_Const.png"
+    diff_model.plot_constant(output_loc)
 
 
-    #Save figures for the error now
-    err_list_rand = []
-    color_iterator = 0
-    for space in space_params:
-        # create a new plot
-        plt.figure(figsize=(200.7, 100.27))
-        plt.ticklabel_format(style='plain', axis='y')
-        fig, ax = plt.subplots()
-        legends_list = []
-        ax.set_xlabel("Prob_contagtion")
-        ax.set_ylabel("Error")
-        for pop in population_params:
-            # initialize new subplot, cont_list
-            err_list_rand = []
-            for cont in contagtion_params:
-                err_list_rand.append(outputs_rand_error[space][pop][cont])
-            # Plot the subplot
-            ax.plot(contagtion_params, err_list_rand, color=colors[color_iterator], label=("Population" + str(pop)),
-                    linewidth=1)
-            legend = mpatches.Patch(color=colors[color_iterator])
-            color_iterator = (color_iterator + 1) % 4
-            legends_list.append(legend)
-            err_list_rand = []
+    runModelScenario(data, 0, prob)
 
-        # Save the plot here
-        ax.set_title("RAND Error space=(" + str(space) + "," + str(space) + ")")
-        plt.axis('tight')
-        plt.legend(legends_list, population_params, bbox_to_anchor=(0.90, 1.1), loc="upper left", borderaxespad=0,
-                   fontsize='xx-small')
-        output = "scenarios/Verifier/" + "RAND_Error_space(" + str(space) + ").png"
-        plt.savefig(output, dpi=700)
-        plt.close()
+    model_data = data["output"]["model_save_file"]
+    #process the model data
 
-    err_list_const = []
-    color_iterator = 0
-    # Do the same for const
-    for space in space_params:
-        # create a new plot
-        plt.figure(figsize=(200.7, 100.27))
-        plt.ticklabel_format(style='plain', axis='y')
-        fig, ax = plt.subplots()
-        legends_list = []
-        ax.set_xlabel("Prob_contagtion")
-        ax.set_ylabel("Error")
-        for pop in population_params:
-            # initialize new subplot, cont_list
-            err_list_const = []
-            for cont in contagtion_params:
-                err_list_const.append(outputs_const_error[space][pop][cont])
-            # Plot the subplot
-            ax.plot(contagtion_params, err_list_const, color=colors[color_iterator], label=pop, linewidth=1)
-            legend = mpatches.Patch(color=colors[color_iterator])
-            color_iterator = (color_iterator + 1) % 4
-            legends_list.append(legend)
-            err_list_const = []
+    #output the test model
 
-        # Save the plot here
-        ax.set_title("CONST Error space=" + str(space))
-        plt.axis('tight')
-        plt.legend(legends_list, population_params, bbox_to_anchor=(0.90, 1.1), loc="upper left", borderaxespad=0,
-                   fontsize='xx-small')
-        output = "scenarios/Verifier/" + "CONST_Error_space(" + str(space) + ").png"
-        plt.savefig(output, dpi=700)
-        plt.close()
 
-    R_list = []
-    color_iterator = 0
-    # Do the same for const
-    for space in space_params:
-        # create a new plot
-        plt.figure(figsize=(200.7, 100.27))
-        plt.ticklabel_format(style='plain', axis='y')
-        fig, ax = plt.subplots()
-        legends_list = []
-        ax.set_xlabel("Prob_contagtion")
-        ax.set_ylabel("R")
-        for pop in population_params:
-            # initialize new subplot, cont_list
-            R_list = []
-            for cont in contagtion_params:
-                R_list.append(outputs_R[space][pop][cont])
-            # Plot the subplot
-            ax.plot(contagtion_params, R_list, color=colors[color_iterator], label=pop, linewidth=1)
-            legend = mpatches.Patch(color=colors[color_iterator])
-            color_iterator = (color_iterator + 1) % 4
-            legends_list.append(legend)
-            R_list = []
+    diff_model.plot_diff_abm_const(model_data)
+    hyperparams = [0.25, 0.25, 0.25, 0.25, 0]
+    diff_model.Verify_Assertion(model_data, hyperparams)
+    #Given our value for R_0, we create a const diffeq model with that value
 
-        # Save the plot here
-        ax.set_title("diffeq R const for space=" + str(space))
-        plt.axis('tight')
-        plt.legend(legends_list, population_params, bbox_to_anchor=(0.90, 1.1), loc="upper left", borderaxespad=0,
-                   fontsize='xx-small')
-        output = "scenarios/Verifier/" + "CONST_R_space(" + str(space) + ").png"
-        plt.savefig(output, dpi=700)
-        plt.close()
+    # We then use inv(R_0, space, pop) = cont_abm
+    # Run the model with parameters for space, pop and cont_abm
+    # If the abm has minimum error close to that of  error_cost[space][pop][cont] we have succeeded.
+
     #Done
 
-
-    # for index, data in enumerate(data_list):
-    #     #runModelScenario(data, index, 0)
-    #     output_location = data["output"]["model_save_file"]
-    #     output_location = output_location.replace(".csv", "-datatype.png")
-    #     df0 = pd.read_csv(data["output"]["model_save_file"])
-    #     features = ["Susceptible", "Exposed", "Infected", "Recovered", "Deceased", "R_0"]
-    #     full_model_data = {}
-    #     for feature in features:
-    #         df = pd.DataFrame()
-    #         df["Step"] = df0["Step"]/96
-    #         df[feature] = df0[feature]  # *100
-    #         avg = []
-    #         low_ci_95 = []
-    #         high_ci_95 = []
-    #         for step in df["Step"].unique():
-    #             values = df[feature][df["Step"] == step]
-    #             f_mean = values.mean()
-    #             avg.append(f_mean)
-    #
-    #         df_stats = pd.DataFrame()
-    #         df_stats["Step"] = df["Step"].unique()
-    #         df_stats["mean"] = avg
-    #         full_model_data[feature] = df_stats["mean"]
-    #         full_model_data["Step"] = df_stats["Step"]
-    #     agent_count = data["model"]["epidemiology"]["num_agents"]
-    #     model_data = {}
-    #     iteration = 0
-    #     model_data["Step"] = full_model_data["Step"]
-    #     for feature in features:
-    #         model_data[feature] = []
-    #         iteration = 0
-    #         for value in full_model_data[feature]:
-    #             if iteration % 96 == 0:
-    #                 if feature == "R_0":
-    #                     model_data[feature].append(value)
-    #                 else:
-    #                     model_data[feature].append(value/agent_count)
-    #             iteration += 1
-    #     model_data["R_0"].append(0)
-    #     model_data["R_0"].append(0)
-    #     hyperparams = [0.25,0.25,0.25,0.25,0] #Weights for SEIRD in error calculation
-    #     error_threshold = 0.001 * len(model_data["R_0"]) #We want on average to be 0.1 error on every step
-    #     step_size = 0.1 #Step size to increase the R_0 scaling for optimal c*R_0
-    #     diffeqmodel = DiffEq(data)
-    #     scale_rand = diffeqmodel.optimize(model_data, step_size, error_threshold, hyperparams)
-    #     scale_const = diffeqmodel.optimize_const(model_data, step_size, error_threshold, hyperparams)
-    #     for index, item in enumerate(model_data["R_0"]):
-    #         model_data["R_0"][index] = item * (scale_rand)
-    #     diffeqmodel.plot_R(model_data, output_location)
-    #     diffeqmodel.beta = average(model_data["R_0"]) * scale_const
-    #     # Verification process:
-    #     #TODO: find a constant parameter that minimizes the error between the agent based model and the differential equation model
-    #     print("R_0 rand scalar: ", scale_rand)
-    #     print("R_0 const scalar: ", scale_const)
-    #
-    #     diffeqmodel.beta_rand = model_data["R_0"]
-    #     diffeqmodel.solve()
-    #     diffeqmodel.solve_rand()
-    #     diffeqmodel.plot_abm(model_data, output_location)
-    #     diffeqmodel.plot_constant(output_location)
-    #     diffeqmodel.plot_random(output_location)
-    #     diffeqmodel.plot_diff(output_location)
-    #     diffeqmodel.plot_diff_abm(model_data, output_location)
-    #     diffeqmodel.plot_diff_abm_const(model_data, output_location)
-        # 1. Initialize Differential model for a fixed parameter
-        # First visualizing a basic SEIRD model with the following parameters:
-            # beta -> constant transmission rate of infected individuals
-                # beta will have to be modified to match the spacial dimensions of the model.
-                # May have to be the case where B -> B(t)
-            # sigma -> average time/ probability of Exposed agents to become infectious
-            # gamma -> average time/ probability of Infected agents to become dead/recovered
-            # morality -> partition of infected agents that do not recover
-            # recovery -> partition of infected agents that recover recovery = (1-mortality)
-
-        # The model will report the following:
-            # S -> Susceptible agents
-            # E -> Exposed agents
-            # I -> Infectious agents
-            # R -> Recovered agents
-            # D -> Deceased agents
-
-
-
-        # 2. Run a parameter sweep for R0 that minimizes the lsq between the two models.
-        # 3. Run trial for varying parameters for R_diff.
-        # 4. Save the values of R_diff and R_abm and find some relating factor in between them.
-
-
-        #2. Parameter sweep algorithm
-        # For maximumm efficiency we will run trials of #2000 steps in a fixed environment.
-        # We will run all 32 iterations in parallel and average the results and their variation values.
-        # We evaluate the lsq for the model at that point.
-        # Based on the size of the R(w) and whether it was an overestimate or under, we will reshift the prop_contagtion parameter.
-        # One thing to note are all the parameters in the OG model and how they affect the overall effect on the model.
-
+    #Challenges: inv_f will require the generation of a continuous R(space, pop, cont), we will have to find the gradient with respect to the cont, which can be done by observing the graphs
 
