@@ -382,24 +382,25 @@ class DiffEq():
         scale = 1
         min_error = 9999999
         step = step_size
-        increase = True #Begin with this value at true since R_0 is guaranteed to be an underestimate
-        change  = False
+        increase = True  # Begin with this value at true since R_0 is guaranteed to be an underestimate
+        change = False
         escaped = False
         previous_error = 999999
         iteration = 0
+        new_error = 100
         while min_error > success_threshold:
             R_t = []
-            #Shift the parameter up and down
+            # Shift the parameter up and down
             if increase:
                 if change:
-                    step = step/2
+                    step = step / 2
 
                 scale += step
                 for index, item in enumerate(model_data["R_0"]):
                     R_t.append(item * (scale))
             else:
                 if change:
-                    step = step/2
+                    step = step / 2
 
                 scale -= step
                 for index, item in enumerate(model_data["R_0"]):
@@ -407,9 +408,10 @@ class DiffEq():
             # run the differential equation model and calculate the error
             self.beta_rand = R_t
             self.solve_rand()
+
+            previous_error = new_error
             new_error = self.calculate_error(model_data, hyperparam_weights)
             diff = np.abs(new_error - previous_error)
-            previous_error = new_error
 
             # This approximation is the best so far
             # If this approximation is better then we continue traversing at the same speed
@@ -420,25 +422,22 @@ class DiffEq():
                 min_increase = increase
                 continue
 
-            #This is not a better estimate, so change directions and change velocity
+            # This is not a better estimate, so change directions and change velocity
             if change != True:
                 change = True
 
-            if increase:
-                increase = False
-            else:
-                increase = True
+            if (new_error > previous_error):
+                increase = not (increase)  # Change directions
 
-
-            if (diff) < 0.001: #This approximation is going nowhere
+            if (diff) < 0.001:  # This approximation is going nowhere
                 scale = min_scale
-                increase = not(min_increase)
+                increase = not (min_increase)
                 change = False
                 step = step_size
 
-            iteration+= 1
-            #print("New_error: ", new_error, "Min_error: ", min_error, "success_threshold: ", success_threshold, "Escaped: ", escaped, "Iterations: ", iteration, "Scaler: ", scale)
-            if (iteration > 100): #Stuck in the loop, error diverged
+            iteration += 1
+            # print("New_error: ", new_error, "Min_error: ", min_error, "success_threshold: ", success_threshold, "Escaped: ", escaped, "Iterations: ", iteration, "Scaler: ", scale)
+            if (iteration > 100):  # Stuck in the loop, error diverged
                 escaped = True
                 break
         return min_scale, min_error
@@ -457,19 +456,20 @@ class DiffEq():
         scale = 1
         min_error = 9999999
         step = step_size
-        increase = True #Begin with this value at true since R_0 is guaranteed to be an underestimate
-        change  = False
+        increase = True  # Begin with this value at true since R_0 is guaranteed to be an underestimate
+        change = False
         escaped = False
         R_const_static = average(model_data["R_0"])
         iteration = 0
         previous_error = 100
+        new_error = 100
         min_scale = 0
         while min_error > success_threshold:
-            #Shift the parameter up and down
+            # Shift the parameter up and down
             R_const = R_const_static
             if increase:
                 if change:
-                    step = step/1.25
+                    step = step / 1.25
 
                 scale += step
                 R_const = R_const * scale
@@ -482,9 +482,9 @@ class DiffEq():
             # run the differential equation model and calculate the error
             self.beta = R_const
             self.solve()
+            previous_error = new_error
             new_error = self.calculate_error_const(model_data, hyperparam_weights)
             diff = np.abs(new_error - previous_error)
-            previous_error = new_error
 
             # This approximation is the best so far
             # If this approximation is better then we continue traversing at the same speed
@@ -499,10 +499,8 @@ class DiffEq():
             if change != True:
                 change = True
 
-            if increase:
-                increase = False
-            else:
-                increase = True
+            if (new_error > previous_error):
+                increase = not (increase)  # Change directions
 
             if (diff) < 0.001:  # This approximation is going nowhere
                 scale = min_scale
@@ -510,9 +508,9 @@ class DiffEq():
                 change = False
                 step = step_size
 
-            iteration+= 1
-            #print("New_error: ", new_error, "Min_error: ", min_error, "success_threshold: ", success_threshold, "Escaped: ", escaped, "Iterations: ", iteration, "Scaler: ", scale)
-            if (iteration > 100): #Stuck in the loop, error diverged
+            iteration += 1
+            # print("New_error: ", new_error, "Min_error: ", min_error, "success_threshold: ", success_threshold, "Escaped: ", escaped, "Iterations: ", iteration, "Scaler: ", scale)
+            if (iteration > 100):  # Stuck in the loop, error diverged
                 escaped = True
                 break
         return min_scale, min_error, R_const_static
@@ -528,6 +526,8 @@ def average(values):
         if item - res > 0:
             count += item
             count_n += 1
+    if count_n == 0:
+        return 0
     return count / count_n
 
 

@@ -26,6 +26,8 @@ import glob
 import copy
 import matplotlib.patches as mpatches
 from os.path import exists
+from scipy.optimize import curve_fit
+from scipy.optimize import differential_evolution
 
 
 directory_list = []
@@ -277,16 +279,31 @@ class DiffEq():
                                        t_eval=self.timespan)
 
     def plot_constant(self, output):
-        plt.figure(figsize=(20, 10))
-        plt.title("Differential Equation Constant R")
-        plt.xlabel('days')
-        plt.ylabel('Prop Population')
-        plt.plot(self.timespan, self.solution.y[0], color="blue", label="Susceptible")
-        plt.plot(self.timespan, self.solution.y[1], color="purple", label="Exposed")
-        plt.plot(self.timespan, self.solution.y[2], color="red", label="Infected")
-        plt.plot(self.timespan, self.solution.y[3], color="green", label="Recovered")
-        plt.plot(self.timespan, self.solution.y[4], color="black", label="Deceased")
-        plt.savefig(output.replace("datatype", "SIRD_constant"),dpi=700)
+        plt.figure(figsize=(200.7, 100.27))
+        plt.ticklabel_format(style='plain', axis='y')
+        fig, ax = plt.subplots()
+        legends_list = []
+        feature_list = ["Susceptible", "Exposed", "Infected", "Recovered", "Deceased"]
+        ax.set_xlabel("Days")
+        ax.set_ylabel("Prop Population")
+        color_iterator = 0
+        colors = ["blue", "red", "purple", "green", "black"]
+        for index, feature in enumerate(feature_list):
+            # initialize new subplot, cont_list
+
+            ax.plot(self.timespan, self.solution.y[index], color=colors[color_iterator], label=feature,
+                    linewidth=1)
+            legend = mpatches.Patch(color=colors[color_iterator])
+            color_iterator = (color_iterator + 1) % 4
+            legends_list.append(legend)
+
+        # Save the plot here
+        ax.set_title("DiffeqModel Final Result")
+        plt.axis('tight')
+        plt.legend(legends_list, feature_list, bbox_to_anchor=(0.90, 1.1), loc="upper left", borderaxespad=0,
+                   fontsize='xx-small')
+        plt.savefig(output, dpi=700)
+        plt.close()
 
     def plot_random(self, output):
         plt.figure(figsize=(20, 10))
@@ -344,18 +361,75 @@ class DiffEq():
         plt.close()
 
     def plot_abm(self, abm_data, output):
-        plt.figure(figsize=(20, 10))
-        plt.title("")
-        plt.xlabel('days')
-        plt.ylabel('Prop Population')
-        plt.title("ABM data")
-        plt.plot( abm_data["Susceptible"], color="blue",label="Susceptible")
-        plt.plot(abm_data["Exposed"], color="purple", label="Exposed")
-        plt.plot(abm_data["Infected"], color="red", label="Infected")
-        plt.plot(abm_data["Recovered"], color="green", label="Recovered")
-        plt.plot(abm_data["Deceased"], color="black", label="Deceased")
-        plt.savefig(output.replace("datatype", "ABM_data"))
+        # create a new plot
+        plt.figure(figsize=(200.7, 100.27))
+        plt.ticklabel_format(style='plain', axis='y')
+        fig, ax = plt.subplots()
+        legends_list = []
+        feature_list = ["Susceptible", "Exposed", "Infected", "Recovered", "Deceased"]
+        ax.set_xlabel("Steps")
+        ax.set_ylabel("Population")
+        color_iterator = 0
+        colors = ["blue", "red", "purple", "green", "black"]
+        for feature in feature_list:
+            # initialize new subplot, cont_list
+
+            ax.plot(self.timespan, abm_data[feature], color=colors[color_iterator], label=feature,
+                    linewidth=1)
+            legend = mpatches.Patch(color=colors[color_iterator])
+            color_iterator = (color_iterator + 1) % 4
+            legends_list.append(legend)
+            cont_list_rand = []
+
+        # Save the plot here
+        ax.set_title("ABM Final Result")
+        plt.axis('tight')
+        plt.legend(legends_list, feature_list, bbox_to_anchor=(0.90, 1.1), loc="upper left", borderaxespad=0,
+                   fontsize='xx-small')
+        plt.savefig(output, dpi=700)
         plt.close()
+
+    def plot_both(self, abm_data, output):
+        # create a new plot
+        plt.figure(figsize=(200.7, 100.27))
+        plt.ticklabel_format(style='plain', axis='y')
+        fig, ax = plt.subplots()
+        legends_list = []
+        feature_list = ["Susceptible", "Exposed", "Infected", "Recovered", "Deceased"]
+        combined_list = []
+        for feature in feature_list:
+            combined_list.append(feature+"_ABM")
+            combined_list.append(feature + "_DiffEq")
+
+        ax.set_xlabel("Steps")
+        ax.set_ylabel("Population")
+        color_iterator = 0
+        colors = ["blue", "red", "purple", "green", "black"]
+        colors_const = ["aqua", "lightcoral", "indigo", "lime", "gray"]
+        for index, feature in enumerate(feature_list):
+            # initialize new subplot, cont_list
+
+            ax.plot(self.timespan, abm_data[feature], color=colors[color_iterator], label=feature+"_ABM",
+                    linewidth=1)
+            legend = mpatches.Patch(color=colors[color_iterator])
+            legends_list.append(legend)
+            ax.plot(self.timespan, self.solution.y[index], color=colors_const[color_iterator], label=feature+"_DiffEq",
+                    linewidth=1)
+            legend = mpatches.Patch(color=colors_const[color_iterator])
+            legends_list.append(legend)
+
+            color_iterator = (color_iterator + 1) % 4
+
+            cont_list_rand = []
+
+        # Save the plot here
+        ax.set_title("Both Results")
+        plt.axis('tight')
+        plt.legend(legends_list, feature_list, bbox_to_anchor=(0.90, 1.1), loc="upper left", borderaxespad=0,
+                   fontsize='xx-small')
+        plt.savefig(output, dpi=700)
+        plt.close()
+
     def plot_R(self, abm_data, output):
         plt.figure(figsize=(20, 10))
         plt.xlabel('days')
@@ -380,11 +454,11 @@ class DiffEq():
     def Verify_Assertion(self, model_data, hyperparam_weights):
         error = 0
         for step, value in enumerate(self.solution_rand.y[0]):
-            error += hyperparam_weights[0] * (self.solution_rand.y[0][step] - model_data["Susceptible"][step]) ** 2
-            error += hyperparam_weights[1] * (self.solution_rand.y[1][step] - model_data["Exposed"][step]) ** 2
-            error += hyperparam_weights[2] * (self.solution_rand.y[2][step] - model_data["Infected"][step]) ** 2
-            error += hyperparam_weights[3] * (self.solution_rand.y[3][step] - model_data["Recovered"][step]) ** 2
-            error += hyperparam_weights[4] * (self.solution_rand.y[4][step] - model_data["Deceased"][step]) ** 2
+            error += hyperparam_weights[0] * np.abs(self.solution_rand.y[0][step] - model_data["Susceptible"][step])
+            error += hyperparam_weights[1] * np.abs(self.solution_rand.y[1][step] - model_data["Exposed"][step])
+            error += hyperparam_weights[2] * np.abs(self.solution_rand.y[2][step] - model_data["Infected"][step])
+            error += hyperparam_weights[3] * np.abs(self.solution_rand.y[3][step] - model_data["Recovered"][step])
+            error += hyperparam_weights[4] * np.abs(self.solution_rand.y[4][step] - model_data["Deceased"][step])
         return np.sqrt(error)
 
     #Runs through an iterated parameter sweep for a constant relative to R_0 and returns the value
@@ -397,6 +471,7 @@ class DiffEq():
         escaped = False
         previous_error = 999999
         iteration = 0
+        new_error = 100
         while min_error > success_threshold:
             R_t = []
             #Shift the parameter up and down
@@ -417,9 +492,11 @@ class DiffEq():
             # run the differential equation model and calculate the error
             self.beta_rand = R_t
             self.solve_rand()
+
+            previous_error = new_error
             new_error = self.calculate_error(model_data, hyperparam_weights)
             diff = np.abs(new_error - previous_error)
-            previous_error = new_error
+
 
             # This approximation is the best so far
             # If this approximation is better then we continue traversing at the same speed
@@ -434,10 +511,8 @@ class DiffEq():
             if change != True:
                 change = True
 
-            if increase:
-                increase = False
-            else:
-                increase = True
+            if (new_error > previous_error):
+                increase = not (increase)  # Change directions
 
 
             if (diff) < 0.001: #This approximation is going nowhere
@@ -463,6 +538,7 @@ class DiffEq():
             error+= hyperparam_weights[4] * (self.solution.y[4][step] - model_data["Deceased"][step])**2
         return np.sqrt(error)
 
+
     def optimize_const(self, model_data, step_size, success_threshold, hyperparam_weights):
         scale = 1
         min_error = 9999999
@@ -473,6 +549,7 @@ class DiffEq():
         R_const_static = average(model_data["R_0"])
         iteration = 0
         previous_error = 100
+        new_error = 100
         min_scale = 0
         while min_error > success_threshold:
             #Shift the parameter up and down
@@ -492,9 +569,10 @@ class DiffEq():
             # run the differential equation model and calculate the error
             self.beta = R_const
             self.solve()
+            previous_error = new_error
             new_error = self.calculate_error_const(model_data, hyperparam_weights)
             diff = np.abs(new_error - previous_error)
-            previous_error = new_error
+
 
             # This approximation is the best so far
             # If this approximation is better then we continue traversing at the same speed
@@ -509,10 +587,8 @@ class DiffEq():
             if change != True:
                 change = True
 
-            if increase:
-                increase = False
-            else:
-                increase = True
+            if (new_error > previous_error):
+                increase = not (increase)  # Change directions
 
             if (diff) < 0.001:  # This approximation is going nowhere
                 scale = min_scale
@@ -528,6 +604,71 @@ class DiffEq():
         return min_scale, min_error
 
 
+def optimize_inv(func, step_size, success_threshold, params,  R):
+    scale = 0.1
+    min_error = 9999999
+    step = step_size
+    increase = False #Begin with this value at true since R_0 is guaranteed to be an underestimate
+    change  = False
+    escaped = False
+    begin = 0
+    iteration = 0
+    previous_error = 100
+    new_error = 100
+    min_scale = 0
+    while min_error > success_threshold:
+        #Shift the parameter up and down
+        if increase:
+            if change:
+                step = step/2
+
+            scale += step
+        else:
+            if change:
+                step = step / 2
+
+            if (scale-step) < 0.00001:
+                scale -= step/2
+                change = True
+            else:
+                scale -= step
+
+        # run the differential equation model and calculate the error
+        previous_error = new_error
+        new_error = np.abs(R - func(scale, params))
+        diff = np.abs(new_error - previous_error)
+
+
+        # This approximation is the best so far
+        # If this approximation is better then we continue traversing at the same speed
+        print("New_error: ", new_error, "Min_error: ", min_error, "Increase: ", increase, "Iterations: ",
+              iteration, "Scaler: ", scale, "Stepsize:", step_size)
+
+        if new_error < min_error:
+            min_error = new_error
+            min_scale = scale
+            min_increase = increase
+            continue
+
+        # This is not a better estimate, so change directions and change velocity
+        if change != True:
+            change = True
+
+        if (new_error > previous_error):
+            increase = not(increase) # Change directions
+
+        if (diff) < 0.001:  # This approximation is going nowhere
+            scale = min_scale
+            increase = not (min_increase)
+            change = False
+            step = step_size
+
+        iteration+= 1
+        if (iteration > 100): #Stuck in the loop, error diverged
+            escaped = True
+            break
+    return min_scale, min_error
+
 def average(values):
     mean = sum(values) / len(values)
     variance = sum([((x - mean) ** 2) for x in values]) / len(values)
@@ -540,7 +681,12 @@ def average(values):
             count_n += 1
     return count / count_n
 
+def func(x, a, b,c,d,e,f,g, Offset):  # Sigmoid A With Offset from zunzun.com
+    return a*x*np.exp(b*(x-c))+d*np.exp(e*(x-f))+g*x+Offset
 
+def func2(x, params):  # Sigmoid A With Offset from zunzun.com
+    a, b, c, d, e, f, g, Offset = params
+    return a*x*np.exp(b*(x-c))+d*np.exp(e*(x-f))+g*x+Offset
 #input a plot, a portion of relevant data
 #optimize the data as you did before finding the relevant scale
 #using the parameters for the data we will create different plots representing the scaled values
@@ -597,13 +743,136 @@ def combine_data(data, rand_d, const_d, space, pop, prob, rand_err_d, const_err_
 
 def Generate_Function(data, space, pop):
     #Find out what function to use and how to regress
-    return []
+    print(space, pop)
+    print(data[data["Space"] == space][data["Population"] == pop]["R"])
+    xData = np.array(data[data["Space"] == space][data["Population"] == pop]["Contagtion"])
+    yData = np.array(data[data["Space"] == space][data["Population"] == pop]["R"])
+
+
+
+    # function for genetic algorithm to minimize (sum of squared error)
+    def sumOfSquaredError(parameterTuple):
+        val = func(xData, *parameterTuple)
+        return np.sum((yData - val) ** 2.0)
+
+    def generate_Initial_Parameters():
+        # min and max used for bounds
+        maxX = max(xData)
+        minX = min(xData)
+        maxY = max(yData)
+        minY = min(yData)
+
+        parameterBounds = []
+        parameterBounds.append([0, 1000])  # search bounds for a
+        parameterBounds.append([-10, 0])  # search bounds for b
+        parameterBounds.append([-1, 1])  # search bounds for c
+        parameterBounds.append([-20, 0])  # search bounds for d
+        parameterBounds.append([-10, 0])  # search bounds for e\
+        parameterBounds.append([-1, 1])  # search bounds for f
+        parameterBounds.append([-20, 20])  # search bounds for g
+        parameterBounds.append([0, 50])  # search bounds for Offset
+
+        # "seed" the numpy random number generator for repeatable results
+        result = differential_evolution(sumOfSquaredError, parameterBounds, seed=3)
+        return result.x
+
+    # generate initial parameter values
+    geneticParameters = generate_Initial_Parameters()
+
+    # curve fit the test data
+    fittedParameters, pcov = curve_fit(func, xData, yData, geneticParameters)
+
+    print('Parameters', fittedParameters)
+
+    modelPredictions = func(xData, *fittedParameters)
+
+    absError = modelPredictions - yData
+
+    SE = np.square(absError)  # squared errors
+    MSE = np.mean(SE)  # mean squared errors
+    RMSE = np.sqrt(MSE)  # Root Mean Squared Error, RMSE
+    Rsquared = 1.0 - (np.var(absError) / np.var(yData))
+    print('RMSE:', RMSE)
+    print('R-squared:', Rsquared)
+
+    ##########################################################
+    # graphics output section
+    def ModelAndScatterPlot(graphWidth, graphHeight):
+        f = plt.figure(figsize=(graphWidth / 100.0, graphHeight / 100.0), dpi=100)
+        axes = f.add_subplot(111)
+
+        # first the raw data as a scatter plot
+        axes.plot(xData, yData, 'D')
+
+        # create data for the fitted equation plot
+        xModel = np.linspace(min(xData), max(xData))
+        yModel = func(xModel, *fittedParameters)
+
+        # now the model as a line plot
+        axes.plot(xModel, yModel)
+        axes.set_title("Best fit model for R")
+        axes.set_xlabel('Contagtion_Probability')  # X axis data label
+        axes.set_ylabel('R')  # Y axis data label
+        plt.savefig("scenarios/Verifier/Best_fit_model.png")
+
+        plt.close('all')  # clean up after using pyplot
+
+    graphWidth = 800
+    graphHeight = 600
+    ModelAndScatterPlot(graphWidth, graphHeight)
+    return fittedParameters
 
 def Generate_Inverse(params, space, pop):
     #Using the function and the parameters from the regression, return the inverse
     return 0.1
 
+def verify_accross_R(data, R, params):
 
+
+    diff_model.beta = R
+    diff_model.solve()
+
+    prob, min_err = optimize_inv(func2, 0.01, 0.0001, params, R)  # Gets the probability of contagtion based on the params from Generate function based on space and population
+    data["model"]["epidemiology"]["prob_contagion"] = prob
+    runModelScenario(data, 0, 0)
+    df0 = pd.read_csv(result_loc)
+    features = ["Susceptible", "Exposed", "Infected", "Recovered", "Deceased", "R_0"]
+    full_model_data = {}
+    for feature in features:
+        df = pd.DataFrame()
+        df["Step"] = df0["Step"] / 96
+        df[feature] = df0[feature]  # *100
+        avg = []
+        low_ci_95 = []
+        high_ci_95 = []
+        for step in df["Step"].unique():
+            values = df[feature][df["Step"] == step]
+            f_mean = values.mean()
+            avg.append(f_mean)
+
+        df_stats = pd.DataFrame()
+        df_stats["Step"] = df["Step"].unique()
+        df_stats["mean"] = avg
+        full_model_data[feature] = df_stats["mean"]
+        full_model_data["Step"] = df_stats["Step"]
+    agent_count = data["model"]["epidemiology"]["num_agents"]
+    model_data = {}
+    iteration = 0
+    model_data["Step"] = full_model_data["Step"]
+    for feature in features:
+        model_data[feature] = []
+        iteration = 0
+        for value in full_model_data[feature]:
+            if iteration % 96 == 0:
+                if feature == "R_0":
+                    model_data[feature].append(value)
+                else:
+                    model_data[feature].append(value / agent_count)
+            iteration += 1
+
+    hyperparams = [0.25, 0.25, 0.25, 0.25, 0]
+    error = diff_model.Verify_Assertion(model_data, hyperparams)
+    return error
 
 #Here is where we put the model verification process.
 if __name__ == '__main__':
@@ -611,32 +880,88 @@ if __name__ == '__main__':
     #This will be difficult but will be useful for estimating best scalar for undetermined input
     #for this instance we will simply assume that the data uses entries within space, pop and cont above
     #Our input within the lookup will be ["Space" = space]["Pop"= pop] we want to find a sufficient prob_contagtion given a value of R_0
-    R = 2
+    R = 10
     space = 50
     population = 800
     data = pd.read_csv("scenarios/Verifier/results_const.csv")
     params = Generate_Function(data, space, population) #Prints the estimated function f(prob) and returns any parameters such as constants
-    prob = Generate_Inverse(params, space, population) #Gets the probability of contagtion based on the params from Generate function based on space and population
+
+    prob, min_err = optimize_inv(func2, 0.01, 0.0001, params, R) #Gets the probability of contagtion based on the params from Generate function based on space and population
 
 
+    print(prob, min_err, func2(prob, params))
+
+    data = data_list[0]
+    data["model"]["epidemiology"]["prob_contagion"] = prob
+    data["model"]["epidemiology"]["width"] = space
+    data["model"]["epidemiology"]["height"] = space
+    data["model"]["epidemiology"]["num_agents"] = population
+    data["output"]["model_save_file"] = "scenarios/Verifier/Test_nokmob/Verification_Test.csv"
+    data["ensemble"]["runs"] = 4 #Change to 96
+    data["ensemble"]["steps"] = 10000
+
+    if not (exists(data["output"]["model_save_file"])):
+        runModelScenario(data, 0, 0)
 
     diff_model = DiffEq(data)
-    #Run constant diffmodel
-    output_loc = "scenarios/Verifier/Test_Const.png"
+    # Run constant diffmodel
+    output_loc = "scenarios/Verifier/Final_Const.png"
+    diff_model.beta = R
+    diff_model.solve()
     diff_model.plot_constant(output_loc)
 
+    result_loc = data["output"]["model_save_file"]
 
-    runModelScenario(data, 0, prob)
 
-    model_data = data["output"]["model_save_file"]
+
     #process the model data
+    df0 = pd.read_csv(result_loc)
+    features = ["Susceptible", "Exposed", "Infected", "Recovered", "Deceased", "R_0"]
+    full_model_data = {}
+    for feature in features:
+        df = pd.DataFrame()
+        df["Step"] = df0["Step"] / 96
+        df[feature] = df0[feature]  # *100
+        avg = []
+        low_ci_95 = []
+        high_ci_95 = []
+        for step in df["Step"].unique():
+            values = df[feature][df["Step"] == step]
+            f_mean = values.mean()
+            avg.append(f_mean)
+
+        df_stats = pd.DataFrame()
+        df_stats["Step"] = df["Step"].unique()
+        df_stats["mean"] = avg
+        full_model_data[feature] = df_stats["mean"]
+        full_model_data["Step"] = df_stats["Step"]
+    agent_count = data["model"]["epidemiology"]["num_agents"]
+    model_data = {}
+    iteration = 0
+    model_data["Step"] = full_model_data["Step"]
+    for feature in features:
+        model_data[feature] = []
+        iteration = 0
+        for value in full_model_data[feature]:
+            if iteration % 96 == 0:
+                if feature == "R_0":
+                    model_data[feature].append(value)
+                else:
+                    model_data[feature].append(value / agent_count)
+            iteration += 1
 
     #output the test model
+    diff_model.plot_abm(model_data, "scenarios/Verifier/Final_Result.png")
+    diff_model.plot_diff_abm_const(model_data, "scenarios/Verifier/Final_diff.png")
+    diff_model.plot_both(model_data, "scenarios/Verifier/Final_Both_models.png")
 
-
-    diff_model.plot_diff_abm_const(model_data)
     hyperparams = [0.25, 0.25, 0.25, 0.25, 0]
-    diff_model.Verify_Assertion(model_data, hyperparams)
+    error =diff_model.Verify_Assertion(model_data, hyperparams)
+    print("Total_Error: ", error, "Score: ", 100-100*error/((data["ensemble"]["steps"]/96)+2))
+
+    results_dict = {}
+    for r_val in range(1,10,1):
+
     #Given our value for R_0, we create a const diffeq model with that value
 
     # We then use inv(R_0, space, pop) = cont_abm
