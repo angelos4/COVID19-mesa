@@ -294,7 +294,7 @@ class DiffEq():
             ax.plot(self.timespan, self.solution.y[index], color=colors[color_iterator], label=feature,
                     linewidth=1)
             legend = mpatches.Patch(color=colors[color_iterator])
-            color_iterator = (color_iterator + 1) % 4
+            color_iterator = (color_iterator + 1) % 5
             legends_list.append(legend)
 
         # Save the plot here
@@ -377,7 +377,7 @@ class DiffEq():
             ax.plot(self.timespan, abm_data[feature], color=colors[color_iterator], label=feature,
                     linewidth=1)
             legend = mpatches.Patch(color=colors[color_iterator])
-            color_iterator = (color_iterator + 1) % 4
+            color_iterator = (color_iterator + 1) % 5
             legends_list.append(legend)
             cont_list_rand = []
 
@@ -413,12 +413,12 @@ class DiffEq():
                     linewidth=1)
             legend = mpatches.Patch(color=colors[color_iterator])
             legends_list.append(legend)
-            ax.plot(self.timespan, self.solution.y[index], color=colors_const[color_iterator], label=feature+"_DiffEq",
+            ax.plot(self.timespan, self.solution.y[index], color= colors_const[color_iterator], label=feature+"_DiffEq",
                     linewidth=1)
             legend = mpatches.Patch(color=colors_const[color_iterator])
             legends_list.append(legend)
 
-            color_iterator = (color_iterator + 1) % 4
+            color_iterator = (color_iterator + 1) % 5
 
             cont_list_rand = []
 
@@ -965,23 +965,23 @@ if __name__ == '__main__':
     error =diff_model.Verify_Assertion(model_data, hyperparams)
     print("Total_Error: ", error, "Score: ", 100-100*error/((data["ensemble"]["steps"]/96)+2))
 
-    results_list = []
-    plt.figure(figsize=(200.7, 100.27))
-    plt.ticklabel_format(style='plain', axis='y')
-    fig, ax = plt.subplots()
-    ax.set_xlabel("R")
-    ax.set_ylabel("Error (%)")
-    for r_val in range(1,10,1):
-        error = verify_accross_R(data, r_val, params)
-        percent = 100 * error / ((data["ensemble"]["steps"] / 96) + 2)
-        results_list.append(percent)
+    # results_list = []
+    # plt.figure(figsize=(200.7, 100.27))
+    # plt.ticklabel_format(style='plain', axis='y')
+    # fig, ax = plt.subplots()
+    # ax.set_xlabel("R")
+    # ax.set_ylabel("Error (%)")
+    # for r_val in range(1,10,1):
+    #     error = verify_accross_R(data, r_val, params)
+    #     percent = 100 * error / ((data["ensemble"]["steps"] / 96) + 2)
+    #     results_list.append(percent)
 
-    ax.plot(range(1,10,1), results_list, color="red", label="Errors", linewidth=1)
-    ax.set_title("ABM model errors across different R values" + str(space))
-    plt.axis('tight')
-    output = "scenarios/Verifier/" + "R_value_errors.png"
-    plt.savefig(output, dpi=700)
-    plt.close()
+    # ax.plot(range(1,10,1), results_list, color="red", label="Errors", linewidth=1)
+    # ax.set_title("ABM model errors across different R values" + str(space))
+    # plt.axis('tight')
+    # output = "scenarios/Verifier/" + "R_value_errors.png"
+    # plt.savefig(output, dpi=700)
+    # plt.close()
 
     #Output the error
 
