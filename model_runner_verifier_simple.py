@@ -592,9 +592,9 @@ if __name__ == '__main__':
     run_models = True
     run_extra = True
     run_tests = False
-    space_params = [50,75]
+    space_params = [50,75, 100,125]
     population_params = [500,600,700,800]
-    contagtion_params = [0.01, 0.025 ,0.05, 0.075, 0.1, 0.15, 0.2, 0.25, 0.3, 0.35, 0.4, 0.45]
+    contagtion_params = [0, 0.005, 0.01, 0.025 ,0.05, 0.075, 0.1, 0.15, 0.2, 0.25, 0.3, 0.35, 0.4, 0.45, 1]
     data_list_dict = {}
     if (run_extra):
         for space in space_params:
@@ -666,12 +666,14 @@ if __name__ == '__main__':
     total_count = 0
     process_count = 0
     trial_count = len(data_list)-1
+    history = 0
     previous_df_rand = pd.read_csv("scenarios/Verifier/results_rand.csv")
     previous_df_const = pd.read_csv("scenarios/Verifier/results_const.csv")
     while(total_count < trial_count):
+        print(total_count, trial_count)
         processes = []
         total_count = 0
-        process_count = 0
+        process_count = -1*history
         for space in space_params:
             for pop in population_params:
                 for cont in contagtion_params:
@@ -679,20 +681,21 @@ if __name__ == '__main__':
                     if process_count < max_process_count:
                         total_count += 1
                         #if not(space in previous_df_rand["Space"].unique() and pop in previous_df_rand["Population"].unique() and cont in previous_df_rand["Contagtion"].unique()):
-                        if (True):
+                        if (process_count >= 0):
                             process_count += 1
                             print("Running data for:", space, pop, cont)
                             p = multiprocessing.Process(target=combine_data, args=[data,outputs_rand,outputs_const,space, pop, cont, outputs_rand_error, outputs_const_error, outputs_R_avg, outputs_R])
                             p.start()
                             processes.append(p)
                         else:
-                            outputs_rand[space][pop][cont] = previous_df_rand["Space" == space]["Population" == pop]["Contagtion" == cont]["Scalar"]
-                            outputs_const[space][pop][cont] = previous_df_const["Space" == space]["Population" == pop]["Contagtion" == cont]["Scalar"]
-                            outputs_rand_error[space][pop][cont] = previous_df_rand["Space" == space]["Population" == pop]["Contagtion" == cont]["Error"]
-                            outputs_const_error[space][pop][cont] = previous_df_const["Space" == space]["Population" == pop]["Contagtion" == cont]["Error"]
-                            outputs_R_avg[space][pop][cont] = previous_df_const["Space" == space]["Population" == pop]["Contagtion" == cont]["ABM_R_avg"]
-                            outputs_R[space][pop][cont] = previous_df_const["Space" == space]["Population" == pop]["Contagtion" == cont]["R"]
-
+                            process_count += 1
+                            #outputs_rand[space][pop][cont] = previous_df_rand["Space" == space]["Population" == pop]["Contagtion" == cont]["Scalar"]
+                            #outputs_const[space][pop][cont] = previous_df_const["Space" == space]["Population" == pop]["Contagtion" == cont]["Scalar"]
+                            #outputs_rand_error[space][pop][cont] = previous_df_rand["Space" == space]["Population" == pop]["Contagtion" == cont]["Error"]
+                            #outputs_const_error[space][pop][cont] = previous_df_const["Space" == space]["Population" == pop]["Contagtion" == cont]["Error"]
+                            #outputs_R_avg[space][pop][cont] = previous_df_const["Space" == space]["Population" == pop]["Contagtion" == cont]["ABM_R_avg"]
+                            #outputs_R[space][pop][cont] = previous_df_const["Space" == space]["Population" == pop]["Contagtion" == cont]["R"]
+        history += process_count
         for process in processes:
             process.join()
     
