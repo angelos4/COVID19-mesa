@@ -622,7 +622,7 @@ if __name__ == '__main__':
                 if process_count < max_process_count:
                     total_count += 1
                     if not (exists(data["output"]["model_save_file"])): #if the trial does not exist
-                        process_count += 1
+                        process_count += data["ensemble"]["runs"]
                         p = multiprocessing.Process(target=runModelScenario, args=[data, 0, 0])
                         p.start()
                         processes.append(p)
