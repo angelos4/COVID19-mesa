@@ -837,6 +837,7 @@ def verify_accross_R(data, R, params):
     data["model"]["epidemiology"]["prob_contagion"] = prob
     out = data["output"]["model_save_file"]
     data["output"]["model_save_file"] = out.replace(".csv", f"R({R}).csv")
+    print(out.replace(".csv", f"R({R}).csv"))
     if not(exists(data["output"]["model_save_file"])):
         runModelScenario(data, 0, 0)
     df0 = pd.read_csv(result_loc)
@@ -873,7 +874,7 @@ def verify_accross_R(data, R, params):
                 else:
                     model_data[feature].append(value / agent_count)
             iteration += 1
-
+    print(average(model_data["R_0"]))
     hyperparams = [0.25, 0.25, 0.25, 0.25, 0]
     error = diff_model.Verify_Assertion(model_data, hyperparams)
     print(error)
