@@ -887,7 +887,7 @@ if __name__ == '__main__':
     #for this instance we will simply assume that the data uses entries within space, pop and cont above
     #Our input within the lookup will be ["Space" = space]["Pop"= pop] we want to find a sufficient prob_contagtion given a value of R_0
     R = 4
-    space = 50
+    space = 100
     population = 800
     data = pd.read_csv("scenarios/Verifier/results_const.csv")
     params = Generate_Function(data, space, population) #Prints the estimated function f(prob) and returns any parameters such as constants
@@ -965,23 +965,23 @@ if __name__ == '__main__':
     error =diff_model.Verify_Assertion(model_data, hyperparams)
     print("Total_Error: ", error, "Score: ", 100-100*error/((data["ensemble"]["steps"]/96)+2))
 
-    # results_list = []
-    # plt.figure(figsize=(200.7, 100.27))
-    # plt.ticklabel_format(style='plain', axis='y')
-    # fig, ax = plt.subplots()
-    # ax.set_xlabel("R")
-    # ax.set_ylabel("Error (%)")
-    # for r_val in range(1,10,1):
-    #     error = verify_accross_R(data, r_val, params)
-    #     percent = 100 * error / ((data["ensemble"]["steps"] / 96) + 2)
-    #     results_list.append(percent)
+    results_list = []
+    plt.figure(figsize=(200.7, 100.27))
+    plt.ticklabel_format(style='plain', axis='y')
+    fig, ax = plt.subplots()
+    ax.set_xlabel("R")
+    ax.set_ylabel("Error (%)")
+    for r_val in range(1,10,1):
+        error = verify_accross_R(data, r_val, params)
+        percent = 100 * error / ((data["ensemble"]["steps"] / 96) + 2)
+        results_list.append(percent)
 
-    # ax.plot(range(1,10,1), results_list, color="red", label="Errors", linewidth=1)
-    # ax.set_title("ABM model errors across different R values" + str(space))
-    # plt.axis('tight')
-    # output = "scenarios/Verifier/" + "R_value_errors.png"
-    # plt.savefig(output, dpi=700)
-    # plt.close()
+    ax.plot(range(1,10,1), results_list, color="red", label="Errors", linewidth=1)
+    ax.set_title("ABM model errors across different R values" + str(space))
+    plt.axis('tight')
+    output = "scenarios/Verifier/" + "R_value_errors.png"
+    plt.savefig(output, dpi=700)
+    plt.close()
 
     #Output the error
 
