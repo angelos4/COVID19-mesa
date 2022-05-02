@@ -972,7 +972,7 @@ if __name__ == '__main__':
     data["model"]["epidemiology"]["height"] = space
     data["model"]["epidemiology"]["num_agents"] = population
     data["output"]["model_save_file"] = "scenarios/Verifier/Test_nokmob/Verification_Test.csv"
-    data["ensemble"]["runs"] = 24 #Change to 96
+    data["ensemble"]["runs"] = 12 #Change to 96
     data["ensemble"]["steps"] = 10000
 
     if not (exists(data["output"]["model_save_file"])):
