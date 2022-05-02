@@ -1069,7 +1069,7 @@ if __name__ == '__main__':
                         process = multiprocessing.Process(target=verify_accross_R, args=[data, r_val, params_dict[space][pop], results_hyperparams[space][pop]])
                     else:
                         process = multiprocessing.Process(target=verify_accross_R_no_hyperparams, args=[data, r_val, params_dict[space][pop], results_no_hyperparams[space][pop]])
-                    p.start()
+                    process.start()
                     processes.append(process)
                 #Join processes
                 for p in processes:
