@@ -56,7 +56,7 @@ virus_data = json.load(virus_data_file)
 def runModelScenario(data, index, iterative_input): #Function that runs a specified scenario given parameters in data.
 
     print(f"Location: { data['location'] }")
-    print(f"Description: { data['description'] }")
+    print(f"Description: { data['`description`'] }")
     print(f"Prepared by: { data['prepared-by'] }")
     print(f"Date: { data['date'] }")
     print("")
@@ -827,7 +827,7 @@ def Generate_Inverse(params, space, pop):
     #Using the function and the parameters from the regression, return the inverse
     return 0.1
 
-def verify_accross_R(data, R, params):
+def verify_accross_R(data, R, params,dicto):
 
 
     diff_model.beta = R
@@ -878,7 +878,66 @@ def verify_accross_R(data, R, params):
     hyperparams = [0.25, 0.25, 0.25, 0.25, 0]
     error = diff_model.Verify_Assertion(model_data, hyperparams)
     print(error)
-    return error
+    percent = 100 * error / ((data["ensemble"]["steps"] / 96) + 2)
+    dicto[r_val] = percent
+    return
+
+def verify_accross_R_no_hyperparams(data, R, params, dicto):
+
+
+    diff_model.beta = R
+    diff_model.solve()
+
+    prob, min_err = optimize_inv(func2, 0.01, 0.0001, params, R)  # Gets the probability of contagtion based on the params from Generate function based on space and population
+    data["model"]["epidemiology"]["prob_contagion"] = prob
+    out = data["output"]["model_save_file"]
+    data["output"]["model_save_file"] = out.replace(".csv", f"R({R}).csv")
+    print(out.replace(".csv", f"R({R}).csv"))
+    if not(exists(data["output"]["model_save_file"])):
+        runModelScenario(data, 0, 0)
+    df0 = pd.read_csv(data["output"]["model_save_file"])
+    features = ["Susceptible", "Exposed", "Infected", "Recovered", "Deceased", "R_0"]
+    full_model_data = {}
+    for feature in features:
+        df = pd.DataFrame()
+        df["Step"] = df0["Step"] / 96
+        df[feature] = df0[feature]  # *100
+        avg = []
+        low_ci_95 = []
+        high_ci_95 = []
+        for step in df["Step"].unique():
+            values = df[feature][df["Step"] == step]
+            f_mean = values.mean()
+            avg.append(f_mean)
+
+        df_stats = pd.DataFrame()
+        df_stats["Step"] = df["Step"].unique()
+        df_stats["mean"] = avg
+        full_model_data[feature] = df_stats["mean"]
+        full_model_data["Step"] = df_stats["Step"]
+    agent_count = data["model"]["epidemiology"]["num_agents"]
+    model_data = {}
+    iteration = 0
+    model_data["Step"] = full_model_data["Step"]
+    for feature in features:
+        model_data[feature] = []
+        iteration = 0
+        for value in full_model_data[feature]:
+            if iteration % 96 == 0:
+                if feature == "R_0":
+                    model_data[feature].append(value)
+                else:
+                    model_data[feature].append(value / agent_count)
+            iteration += 1
+    print(average(model_data["R_0"]))
+    hyperparams = [0.25, 0.25, 0,0, 0]
+    error = diff_model.Verify_Assertion(model_data, hyperparams)
+    print(error)
+    percent_2 = 100 * error / ((data["ensemble"]["steps"] / 96) + 2)
+    dicto[r_val] = percent_2
+    return
+
+
 
 #Here is where we put the model verification process.
 if __name__ == '__main__':
@@ -887,7 +946,7 @@ if __name__ == '__main__':
     #for this instance we will simply assume that the data uses entries within space, pop and cont above
     #Our input within the lookup will be ["Space" = space]["Pop"= pop] we want to find a sufficient prob_contagtion given a value of R_0
     R = 4
-    space = 100
+    space = 75
     population = 800
     data = pd.read_csv("scenarios/Verifier/results_const.csv")
     params = Generate_Function(data, space, population) #Prints the estimated function f(prob) and returns any parameters such as constants
@@ -903,7 +962,7 @@ if __name__ == '__main__':
     data["model"]["epidemiology"]["height"] = space
     data["model"]["epidemiology"]["num_agents"] = population
     data["output"]["model_save_file"] = "scenarios/Verifier/Test_nokmob/Verification_Test.csv"
-    data["ensemble"]["runs"] = 96 #Change to 96
+    data["ensemble"]["runs"] = 24 #Change to 96
     data["ensemble"]["steps"] = 10000
 
     if not (exists(data["output"]["model_save_file"])):
@@ -965,23 +1024,96 @@ if __name__ == '__main__':
     error =diff_model.Verify_Assertion(model_data, hyperparams)
     print("Total_Error: ", error, "Score: ", 100-100*error/((data["ensemble"]["steps"]/96)+2))
 
-    results_list = []
-    plt.figure(figsize=(200.7, 100.27))
-    plt.ticklabel_format(style='plain', axis='y')
-    fig, ax = plt.subplots()
-    ax.set_xlabel("R")
-    ax.set_ylabel("Error (%)")
-    for r_val in range(1,10,1):
-        error = verify_accross_R(data, r_val, params)
-        percent = 100 * error / ((data["ensemble"]["steps"] / 96) + 2)
-        results_list.append(percent)
+    #Run the same model with the current hyperparam weights for thing
 
-    ax.plot(range(1,10,1), results_list, color="red", label="Errors", linewidth=1)
-    ax.set_title("ABM model errors across different R values" + str(space))
-    plt.axis('tight')
-    output = "scenarios/Verifier/" + "R_value_errors.png"
-    plt.savefig(output, dpi=700)
-    plt.close()
+    #Run the model across different spacial parameters, save it into a csv file
+
+    space_params = [50, 75, 100, 125]
+    population_params = [500, 600, 700, 800]
+
+    manager = multiprocessing.Manager()
+    results_hyperparams = manager.dict()
+    results_no_hyperparams = manager.dict()
+    colors = ["red", "blue", "green", "brown"]
+    color_iterator = 0
+    for which in range(2):
+        for space in space_params:
+            results_hyperparams[space] = manager.dict()
+            results_no_hyperparams[space] = manager.dict()
+            #print the results for these space parameters
+            # create a new plot
+            plt.figure(figsize=(200.7, 100.27))
+            plt.ticklabel_format(style='plain', axis='y')
+            fig, ax = plt.subplots()
+            legends_list = []
+            ax.set_xlabel("R_value")
+            ax.set_ylabel("Error between ABM and diffEq models (%diff)")
+            for pop in population_params:
+                results_hyperparams[space][pop] = manager.dict()
+                results_no_hyperparams[space][pop] = manager.dict()
+                processes = []
+                for r_val in range(1,9,1):
+                    if (which == 0):
+                        process = multiprocessing.Process(target=verify_accross_R, args=[data, r_val, params, results_hyperparams[space][pop]])
+                    else:
+                        process = multiprocessing.Process(target=verify_accross_R_no_hyperparams, args=[data, r_val, params, results_no_hyperparams[space][pop]])
+                    p.start()
+                    processes.append(process)
+                #Join processes
+                for p in processes:
+                    p.join()
+                #Combine the data into a list
+                results_list = []
+                if (which == 0):
+                    for r_val in range(1,9,1):
+                        results_list.append(results_hyperparams[space][pop][r_val])
+                else:
+                    for r_val in range(1,9,1):
+                        results_list.append(results_no_hyperparams[space][pop][r_val])
+
+                ax.plot(range(1,9,1), results_list, color=colors[color_iterator],
+                        label=("Population" + str(pop)), linewidth=1)
+                legend = mpatches.Patch(color=colors[color_iterator])
+                color_iterator = (color_iterator + 1) % 4
+                legends_list.append(legend)
+                results_list = []
+
+            #Finally save the results into png
+            # Save the plot here
+            if (which == 0):
+                ax.set_title("Equal error across states space=(" + str(space) + "," + str(space) + ")")
+            else:
+                ax.set_title("Error across Susceptible and Exposed space=(" + str(space) + "," + str(space) + ")")
+
+            plt.axis('tight')
+            plt.legend(legends_list, population_params, bbox_to_anchor=(0.90, 1.1), loc="upper left",
+                       borderaxespad=0, fontsize='xx-small')
+            if (which == 0):
+                output = "scenarios/Verifier/" + "hyperparams(" + str(space) + ").png"
+            else:
+                output = "scenarios/Verifier/" + "nohyperparams(" + str(space) + ").png"
+
+            plt.savefig(output, dpi=700)
+            plt.close()
+
+
+    print("Saving Final Output::::::::::::::::::::::\n\n")
+    # Create a dataframe with columns: "Space", "Population", "Contagtion", "Scalar", "Error"
+    data_results = {"Space": [], "Population": [], "R": [], "Result_params": [], "Result_noparams": []}
+
+    for space in space_params:
+        for pop in population_params:
+            for r_val in range(1,9,1):
+                data_results["Space"].append(space)
+                data_results["Population"].append(pop)
+                data_results["Contagtion"].append(r_val)
+                data_results["Result_params"].append(results_hyperparams[space][pop][r_val])
+                data_results["Result_noparams"].append(results_no_hyperparams[space][pop][r_val])
+
+    results_pd = pd.DataFrame(data=data_results)
+    csv_output = "scenarios/Verifier/R_test_results.csv"
+    results_pd.to_csv(csv_output)
+
 
     #Output the error
 
