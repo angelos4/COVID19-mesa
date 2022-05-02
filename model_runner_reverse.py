@@ -55,12 +55,6 @@ virus_data = json.load(virus_data_file)
 
 def runModelScenario(data, index, iterative_input): #Function that runs a specified scenario given parameters in data.
 
-    print(f"Location: { data['location'] }")
-    print(f"Description: { data['`description`'] }")
-    print(f"Prepared by: { data['prepared-by'] }")
-    print(f"Date: { data['date'] }")
-    print("")
-    print("Attempting to configure model from file...")
     # Observed distribution of mortality rate per age
     age_mortality = {
         AgeGroup.C80toXX: data["model"]["mortalities"]["age"]["80+"],
@@ -893,8 +887,11 @@ def verify_accross_R_no_hyperparams(data, R, params, dicto):
 
     prob, min_err = optimize_inv(func2, 0.01, 0.0001, params, R)  # Gets the probability of contagtion based on the params from Generate function based on space and population
     data["model"]["epidemiology"]["prob_contagion"] = prob
+    data["model"]["epidemiology"]["width"] = space
+    data["model"]["epidemiology"]["height"] = space
+    data["model"]["epidemiology"]["num_agents"] = population
     out = data["output"]["model_save_file"]
-    data["output"]["model_save_file"] = out.replace(".csv", f"R({R}).csv")
+    data["output"]["model_save_file"] = out.replace(".csv", f"R({R}),{space},{pop}.csv")
     print(out.replace(".csv", f"R({R}).csv"))
     if not(exists(data["output"]["model_save_file"])):
         runModelScenario(data, 0, 0)
