@@ -952,7 +952,7 @@ if __name__ == '__main__':
 
     params = Generate_Function(data, space, population) #Prints the estimated function f(prob) and returns any parameters such as constants
 
-    space_params = [50, 75, 100, 125]
+    space_params = [50, 75]
     population_params = [500, 600, 700, 800]
     params_dict = {}
     for space in space_params:
