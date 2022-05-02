@@ -949,7 +949,17 @@ if __name__ == '__main__':
     space = 75
     population = 800
     data = pd.read_csv("scenarios/Verifier/results_const.csv")
+
     params = Generate_Function(data, space, population) #Prints the estimated function f(prob) and returns any parameters such as constants
+
+    space_params = [50, 75, 100, 125]
+    population_params = [500, 600, 700, 800]
+    params_dict = {}
+    for space in space_params:
+        params_dict[space] = {}
+        for pop in population_params:
+            params_dict[space][pop] =  Generate_Function(data, space, pop) #Prints the estimated function f(prob) and returns any parameters such as constants
+
 
     prob, min_err = optimize_inv(func2, 0.01, 0.0001, params, R) #Gets the probability of contagtion based on the params from Generate function based on space and population
 
@@ -1028,8 +1038,7 @@ if __name__ == '__main__':
 
     #Run the model across different spacial parameters, save it into a csv file
 
-    space_params = [50, 75, 100, 125]
-    population_params = [500, 600, 700, 800]
+
 
     manager = multiprocessing.Manager()
     results_hyperparams = manager.dict()
@@ -1054,9 +1063,9 @@ if __name__ == '__main__':
                 processes = []
                 for r_val in range(1,9,1):
                     if (which == 0):
-                        process = multiprocessing.Process(target=verify_accross_R, args=[data, r_val, params, results_hyperparams[space][pop]])
+                        process = multiprocessing.Process(target=verify_accross_R, args=[data, r_val, params_dict[space][pop], results_hyperparams[space][pop]])
                     else:
-                        process = multiprocessing.Process(target=verify_accross_R_no_hyperparams, args=[data, r_val, params, results_no_hyperparams[space][pop]])
+                        process = multiprocessing.Process(target=verify_accross_R_no_hyperparams, args=[data, r_val, params_dict[space][pop], results_no_hyperparams[space][pop]])
                     p.start()
                     processes.append(process)
                 #Join processes
