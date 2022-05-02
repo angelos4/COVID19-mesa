@@ -781,7 +781,10 @@ def Generate_Function(data, space, pop):
     geneticParameters = generate_Initial_Parameters()
 
     # curve fit the test data
-    fittedParameters, pcov = curve_fit(func, xData, yData, geneticParameters)
+    try:
+        fittedParameters, pcov = curve_fit(func, xData, yData, geneticParameters)
+    except Exception as e:
+        fittedParameters, pcov = [0,0,0,0,0,0,0,0], None
 
     print('Parameters', fittedParameters)
 
@@ -814,7 +817,7 @@ def Generate_Function(data, space, pop):
         axes.set_title("Best fit model for R")
         axes.set_xlabel('Contagtion_Probability')  # X axis data label
         axes.set_ylabel('R')  # Y axis data label
-        plt.savefig("scenarios/Verifier/Best_fit_model.png")
+        plt.savefig(f"scenarios/Verifier/Best_fit_model_{space},{pop}.png")
 
         plt.close('all')  # clean up after using pyplot
 
